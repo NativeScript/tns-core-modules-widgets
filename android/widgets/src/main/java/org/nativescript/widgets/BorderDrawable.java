@@ -12,26 +12,30 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.ColorDrawable;
+import android.util.Log;
+
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * Created by hristov on 6/15/2016.
  */
 public class BorderDrawable extends ColorDrawable {
-    private float density;
+    private final float density;
+    private Rect boundsCache;
     private float borderWidth;
     private int borderColor;
     private float borderRadius;
     private String clipPath;
     private int backgroundColor;
+    private Paint backgroundColorPaint;
     private Bitmap backgroundImage;
-    private float backgroundImageWidth;
-    private float backgroundImageHeight;
     private String backgroundRepeat;
     private String backgroundPosition;
     private CSSValue[] backgroundPositionParsedCSSValues;
     private String backgroundSize;
     private CSSValue[] backgroundSizeParsedCSSValues;
+    private BackgroundDrawParams bkgParams;
 
     public float getBorderWidth() {
         return borderWidth;
@@ -57,14 +61,6 @@ public class BorderDrawable extends ColorDrawable {
         return backgroundImage;
     }
 
-    public float getBackgroundImageWidth() {
-        return backgroundImageWidth;
-    }
-
-    public float getBackgroundImageHeight() {
-        return backgroundImageHeight;
-    }
-
     public String getBackgroundRepeat() {
         return backgroundRepeat;
     }
@@ -88,70 +84,124 @@ public class BorderDrawable extends ColorDrawable {
                         String clipPath,
                         int backgroundColor,
                         Bitmap backgroundImage,
-                        float backgroundImageWidth,
-                        float backgroundImageHeight,
                         String backgroundRepeat,
                         String backgroundPosition,
                         CSSValue[] backgroundPositionParsedCSSValues,
                         String backgroundSize,
                         CSSValue[] backgroundSizeParsedCSSValues){
-        this.borderWidth = borderWidth;
-        this.borderColor = borderColor;
-        this.borderRadius = borderRadius;
-        this.clipPath = clipPath;
-        this.backgroundColor = backgroundColor;
-        this.backgroundImage = backgroundImage;
-        this.backgroundImageWidth = backgroundImageWidth;
-        this.backgroundImageHeight = backgroundImageHeight;
-        this.backgroundRepeat = backgroundRepeat;
-        this.backgroundPosition = backgroundPosition;
-        this.backgroundPositionParsedCSSValues = backgroundPositionParsedCSSValues;
-        this.backgroundSize = backgroundSize;
-        this.backgroundSizeParsedCSSValues = backgroundSizeParsedCSSValues;
-        this.invalidateSelf();
+        boolean invalidate = false;
+
+        if (!Objects.equals(this.borderWidth, borderWidth)){
+            this.borderWidth = borderWidth;
+            invalidate = true;
+        }
+        if (!Objects.equals(this.borderColor, borderColor)){
+            this.borderColor = borderColor;
+            invalidate = true;
+        }
+        if (!Objects.equals(this.borderRadius, borderRadius)){
+            this.borderRadius = borderRadius;
+            invalidate = true;
+        }
+        if (!Objects.equals(this.clipPath, clipPath)){
+            this.clipPath = clipPath;
+            this.clipPathFunctionCache = null;
+            this.clipPathValuesCache = null;
+            this.clipPathPolygonPointsCache = null;
+            invalidate = true;
+        }
+        if (!Objects.equals(this.backgroundColor, backgroundColor)){
+            this.backgroundColor = backgroundColor;
+            if (this.backgroundColor != Color.TRANSPARENT){
+                this.backgroundColorPaint = new Paint();
+                this.backgroundColorPaint.setStyle(Paint.Style.FILL);
+                this.backgroundColorPaint.setColor(this.backgroundColor);
+                this.backgroundColorPaint.setAntiAlias(true);
+            }
+            else {
+                this.backgroundColorPaint = null;
+            }
+            invalidate = true;
+        }
+        if (!Objects.equals(this.backgroundImage, backgroundImage)){
+            this.backgroundImage = backgroundImage;
+            this.bkgParams = null;
+            invalidate = true;
+        }
+        if (!Objects.equals(this.backgroundRepeat, backgroundRepeat)){
+            this.backgroundRepeat = backgroundRepeat;
+            this.bkgParams = null;
+            invalidate = true;
+        }
+        if (!Objects.equals(this.backgroundPosition, backgroundPosition)){
+            this.backgroundPosition = backgroundPosition;
+            this.backgroundPositionParsedCSSValues = backgroundPositionParsedCSSValues;
+            this.bkgParams = null;
+            invalidate = true;
+        }
+        if (!Objects.equals(this.backgroundSize, backgroundSize)){
+            this.backgroundSize = backgroundSize;
+            this.backgroundSizeParsedCSSValues = backgroundSizeParsedCSSValues;
+            this.bkgParams = null;
+            invalidate = true;
+        }
+        if (invalidate){
+            this.invalidateSelf();
+        }
     }
 
     @Override
     public void draw(Canvas canvas) {
-        Rect bounds = this.getBounds();
-        float borderWidth = this.borderWidth * this.density;
-        float halfBorderWidth = borderWidth / 2.0f;
+        Rect bounds = this.copyBounds();
+        if (!Objects.equals(this.boundsCache, bounds)){
+            this.bkgParams = null;
+        }
+        this.boundsCache = bounds;
 
+        float borderWidth = this.borderWidth * this.density;
+        float halfBorderWidth = borderWidth / 2f;
         // We will inset background colors and images so antialiasing will not color pixels outside the border.
         // If the border is transparent we will backoff less, and we will not backoff more than half a pixel or half the border width.
-        float normalizedBorderAlpha = ((float)Color.alpha(this.borderColor)) / 255.0f;
+        float normalizedBorderAlpha = ((float)Color.alpha(this.borderColor)) / 255f;
         float backoffAntialias = Math.min(0.5f, halfBorderWidth) * normalizedBorderAlpha;
         RectF backgroundBoundsF = new RectF(bounds.left + backoffAntialias, bounds.top + backoffAntialias, bounds.right - backoffAntialias, bounds.bottom - backoffAntialias);
 
         float outerRadius = this.borderRadius * this.density;
 
         // draw background
-        if (this.backgroundColor != 0) {
-            Paint backgroundColorPaint = new Paint();
-            backgroundColorPaint.setStyle(Paint.Style.FILL);
-            backgroundColorPaint.setColor(this.backgroundColor);
-            backgroundColorPaint.setAntiAlias(true);
-
-            if (this.clipPath != null && !this.clipPath.isEmpty()) {
-                drawClipPath(this.clipPath, canvas, backgroundColorPaint, backgroundBoundsF, density);
+        if (this.backgroundColorPaint != null) {
+            if (!Objects.isNullOrEmpty(this.clipPath)) {
+                this.drawClipPath(canvas, this.backgroundColorPaint, backgroundBoundsF);
             }
             else {
-                canvas.drawRoundRect(backgroundBoundsF, outerRadius, outerRadius, backgroundColorPaint);
+                canvas.drawRoundRect(backgroundBoundsF, outerRadius, outerRadius, this.backgroundColorPaint);
             }
         }
 
-        if (this.backgroundImage != null){
-            BackgroundDrawParams params = this.getDrawParams(bounds.width(), bounds.height());
-            Matrix transform = new Matrix();
-            if (params.sizeX > 0 && params.sizeY > 0) {
-                float scaleX = params.sizeX / this.backgroundImage.getWidth();
-                float scaleY = params.sizeY / this.backgroundImage.getHeight();
-                transform.setScale(scaleX, scaleY, 0, 0);
-            } else {
-                params.sizeX = this.backgroundImage.getWidth();
-                params.sizeY = this.backgroundImage.getHeight();
+        if (this.backgroundImage != null) {
+            if (this.bkgParams == null) {
+                this.bkgParams = getBackgroundDrawParams(
+                        bounds.width(),
+                        bounds.height(),
+                        this.backgroundImage,
+                        this.backgroundRepeat,
+                        this.backgroundPosition,
+                        this.backgroundPositionParsedCSSValues,
+                        this.backgroundSize,
+                        this.backgroundSizeParsedCSSValues
+                );
             }
-            transform.postTranslate(params.posX - backoffAntialias, params.posY - backoffAntialias);
+
+            Matrix transform = new Matrix();
+            if (this.bkgParams.sizeX > 0f && this.bkgParams.sizeY > 0f) {
+                float scaleX = this.bkgParams.sizeX / this.backgroundImage.getWidth();
+                float scaleY = this.bkgParams.sizeY / this.backgroundImage.getHeight();
+                transform.setScale(scaleX, scaleY, 0f, 0f);
+            } else {
+                this.bkgParams.sizeX = this.backgroundImage.getWidth();
+                this.bkgParams.sizeY = this.backgroundImage.getHeight();
+            }
+            transform.postTranslate(this.bkgParams.posX - backoffAntialias, this.bkgParams.posY - backoffAntialias);
 
             BitmapShader shader = new BitmapShader(this.backgroundImage, android.graphics.Shader.TileMode.REPEAT, android.graphics.Shader.TileMode.REPEAT);
             shader.setLocalMatrix(transform);
@@ -159,13 +209,13 @@ public class BorderDrawable extends ColorDrawable {
             Paint backgroundImagePaint = new Paint();
             backgroundImagePaint.setShader(shader);
 
-            float imageWidth = params.repeatX ? bounds.width() : params.sizeX;
-            float imageHeight = params.repeatY ? bounds.height() : params.sizeY;
-            params.posX = params.repeatX ? 0 : params.posX;
-            params.posY = params.repeatY ? 0 : params.posY;
+            float imageWidth = this.bkgParams.repeatX ? bounds.width() : this.bkgParams.sizeX;
+            float imageHeight = this.bkgParams.repeatY ? bounds.height() : this.bkgParams.sizeY;
+            this.bkgParams.posX = this.bkgParams.repeatX ? 0f : this.bkgParams.posX;
+            this.bkgParams.posY = this.bkgParams.repeatY ? 0f: this.bkgParams.posY;
 
-            if (this.clipPath != null && !this.clipPath.isEmpty()) {
-                drawClipPath(this.clipPath, canvas, backgroundImagePaint, backgroundBoundsF, density);
+            if (!Objects.isNullOrEmpty(this.clipPath)) {
+                this.drawClipPath(canvas, backgroundImagePaint, backgroundBoundsF);
             }
             else {
                 boolean supportsPathOp = android.os.Build.VERSION.SDK_INT >= 19;
@@ -174,13 +224,13 @@ public class BorderDrawable extends ColorDrawable {
                     Path backgroundPath = new Path();
                     backgroundPath.addRoundRect(backgroundBoundsF, outerRadius, outerRadius, android.graphics.Path.Direction.CCW);
                     Path backgroundNoRepeatPath = new Path();
-                    backgroundNoRepeatPath.addRect(params.posX, params.posY, params.posX + imageWidth, params.posY + imageHeight, android.graphics.Path.Direction.CCW);
+                    backgroundNoRepeatPath.addRect(this.bkgParams.posX, this.bkgParams.posY, this.bkgParams.posX + imageWidth, this.bkgParams.posY + imageHeight, android.graphics.Path.Direction.CCW);
                     intersect(backgroundPath, backgroundNoRepeatPath);
                     canvas.drawPath(backgroundPath, backgroundImagePaint);
                 } else {
                     // Clipping here will not be anti-aliased but at least it won't shine through the rounded corners.
                     canvas.save();
-                    canvas.clipRect(params.posX, params.posY, params.posX + imageWidth, params.posY + imageHeight);
+                    canvas.clipRect(this.bkgParams.posX, this.bkgParams.posY, this.bkgParams.posX + imageWidth, this.bkgParams.posY + imageHeight);
                     canvas.drawRoundRect(backgroundBoundsF, outerRadius, outerRadius, backgroundImagePaint);
                     canvas.restore();
                 }
@@ -188,25 +238,25 @@ public class BorderDrawable extends ColorDrawable {
         }
 
         // draw border
-        if (borderWidth > 0 && this.borderColor != 0) {
+        if (borderWidth > 0f && this.borderColor != Color.TRANSPARENT) {
             RectF middleBoundsF = new RectF(bounds.left + halfBorderWidth, bounds.top + halfBorderWidth, bounds.right - halfBorderWidth, bounds.bottom - halfBorderWidth);
             Paint borderPaint = new Paint();
             borderPaint.setColor(this.borderColor);
             borderPaint.setAntiAlias(true);
 
-            if (this.clipPath != null && !this.clipPath.isEmpty()) {
+            if (!Objects.isNullOrEmpty(this.clipPath)) {
                 borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
                 borderPaint.setStrokeWidth(borderWidth);
-                drawClipPath(this.clipPath, canvas, borderPaint, backgroundBoundsF, density);
+                this.drawClipPath(canvas, borderPaint, backgroundBoundsF);
             } else {
-                if (outerRadius <= 0) {
+                if (outerRadius <= 0f) {
                     borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
                     borderPaint.setStrokeWidth(borderWidth);
                     canvas.drawRect(middleBoundsF, borderPaint);
                 } else if (outerRadius >= borderWidth) {
                     borderPaint.setStyle(android.graphics.Paint.Style.STROKE);
                     borderPaint.setStrokeWidth(borderWidth);
-                    float middleRadius = Math.max(0, outerRadius - halfBorderWidth);
+                    float middleRadius = Math.max(0f, outerRadius - halfBorderWidth);
                     canvas.drawRoundRect(middleBoundsF, middleRadius, middleRadius, borderPaint);
                 } else {
                     Path borderPath = new Path();
@@ -226,59 +276,89 @@ public class BorderDrawable extends ColorDrawable {
         path1.op(path2, Path.Op.INTERSECT);
     }
 
-    private static void drawClipPath(String clipPath, Canvas canvas, Paint paint, RectF bounds, float density) {
-        // Sample string is polygon(20% 0%, 0% 20%, 30% 50%, 0% 80%, 20% 100%, 50% 70%, 80% 100%, 100% 80%, 70% 50%, 100% 20%, 80% 0%, 50% 30%);
-        String functionName = clipPath.substring(0, clipPath.indexOf("("));
-        String value = clipPath.replace(functionName+"(", "").replace(")", "");
+    private static Pattern whitespaceAndCommaPattern = Pattern.compile("[\\s,]+");
+    private static Pattern whitespacePattern = Pattern.compile("\\s+");
+    private String clipPathFunctionCache;
+    private String[] clipPathValuesCache;
+    private String[][] clipPathPolygonPointsCache;
+    private static final String RECT = "rect";
+    private static final String CIRCLE = "circle";
+    private static final String ELLIPSE = "ellipse";
+    private static final String POLYGON = "polygon";
+    private void drawClipPath(Canvas canvas, Paint paint, RectF bounds) {
+        if (this.clipPathFunctionCache == null){
+            this.clipPathFunctionCache = this.clipPath.substring(0, this.clipPath.indexOf("("));
+        }
 
-        String[] arr;
-        float left;
-        float top;
-        float right;
-        float bottom;
-        switch (functionName){
-            case "rect":
-                arr = value.split("[\\s,]+");
-                top = cssValueToDevicePixels(arr[0], bounds.top, density);
-                left = cssValueToDevicePixels(arr[1], bounds.left, density);
-                bottom = cssValueToDevicePixels(arr[2], bounds.bottom, density);
-                right = cssValueToDevicePixels(arr[3], bounds.right, density);
+        switch (this.clipPathFunctionCache){
+            case RECT: //rect(0, 0, 100%, 100%)
+                if (this.clipPathValuesCache == null){
+                    String valueBetweenParentheses = this.clipPath.substring(this.clipPath.indexOf("(") + 1, this.clipPath.indexOf(")"));
+                    this.clipPathValuesCache = whitespaceAndCommaPattern.split(valueBetweenParentheses);
+                }
+                float top = cssValueToDevicePixels(this.clipPathValuesCache[0], bounds.top, this.density);
+                float left = cssValueToDevicePixels(this.clipPathValuesCache[1], bounds.left, this.density);
+                float bottom = cssValueToDevicePixels(this.clipPathValuesCache[2], bounds.bottom, this.density);
+                float right = cssValueToDevicePixels(this.clipPathValuesCache[3], bounds.right, this.density);
                 canvas.drawRect(left, top, right, bottom, paint);
                 break;
-            case "circle":
-                arr = value.split("\\s+");
-                float radius = cssValueToDevicePixels(arr[0], (bounds.width() > bounds.height() ? bounds.height() : bounds.width()) / 2, density);
-                float y = cssValueToDevicePixels(arr[2], bounds.height(), density);
-                float x = cssValueToDevicePixels(arr[3], bounds.width(), density);
+            case CIRCLE://circle(100% at 50% 50%)
+                if (this.clipPathValuesCache == null){
+                    String valueBetweenParentheses = this.clipPath.substring(this.clipPath.indexOf("(") + 1, this.clipPath.indexOf(")"));
+                    this.clipPathValuesCache = whitespacePattern.split(valueBetweenParentheses);
+                }
+                float radius = cssValueToDevicePixels(this.clipPathValuesCache[0], (bounds.width() > bounds.height() ? bounds.height() : bounds.width()) / 2, this.density);
+                float y = cssValueToDevicePixels(this.clipPathValuesCache[2], bounds.height(), this.density);
+                float x = cssValueToDevicePixels(this.clipPathValuesCache[3], bounds.width(), this.density);
                 canvas.drawCircle(x, y, radius, paint);
                 break;
-            case "ellipse":
-                arr = value.split("\\s+");
-                float rX = cssValueToDevicePixels(arr[0], bounds.right, density);
-                float rY = cssValueToDevicePixels(arr[1], bounds.bottom, density);
-                float cX = cssValueToDevicePixels(arr[3], bounds.right, density);
-                float cY = cssValueToDevicePixels(arr[4], bounds.bottom, density);
+            case ELLIPSE://ellipse(50% 50% at 50% 50%)
+                if (this.clipPathValuesCache == null){
+                    String valueBetweenParentheses = this.clipPath.substring(this.clipPath.indexOf("(") + 1, this.clipPath.indexOf(")"));
+                    this.clipPathValuesCache = whitespacePattern.split(valueBetweenParentheses);
+                }
+                float rX = cssValueToDevicePixels(this.clipPathValuesCache[0], bounds.right, this.density);
+                float rY = cssValueToDevicePixels(this.clipPathValuesCache[1], bounds.bottom, this.density);
+                float cX = cssValueToDevicePixels(this.clipPathValuesCache[3], bounds.right, this.density);
+                float cY = cssValueToDevicePixels(this.clipPathValuesCache[4], bounds.bottom, this.density);
                 left = cX - rX;
                 top = cY - rY;
                 right = (rX * 2) + left;
                 bottom = (rY * 2) + top;
                 canvas.drawOval(new android.graphics.RectF(left, top, right, bottom), paint);
                 break;
-            case "polygon":
+            case POLYGON://polygon(20% 0%, 0% 20%, 30% 50%, 0% 80%, 20% 100%, 50% 70%, 80% 100%, 100% 80%, 70% 50%, 100% 20%, 80% 0%, 50% 30%)
+                if (this.clipPathValuesCache == null) {
+                    String valueBetweenParentheses = this.clipPath.substring(this.clipPath.indexOf("(") + 1, this.clipPath.indexOf(")"));
+                    //20% 0%, 0% 20%, 30% 50%, 0% 80%, 20% 100%, 50% 70%, 80% 100%, 100% 80%, 70% 50%, 100% 20%, 80% 0%, 50% 30%
+                    this.clipPathValuesCache = valueBetweenParentheses.split(",");
+                    //[" 0% 20%"][" 30% 50%"][...]
+                    this.clipPathPolygonPointsCache = new String[this.clipPathValuesCache.length][2];
+                    for (int i = 0; i < this.clipPathValuesCache.length; i++) {
+                        this.clipPathPolygonPointsCache[i] = whitespacePattern.split(this.clipPathValuesCache[i].trim());
+                    }
+                    //["0%"]["20%"]
+                    //["30%"]["50%"]
+                }
+
                 Path path = new Path();
                 PointF firstPoint = null;
-                arr = value.split(",");
-                for (String s : arr) {
-                    String[] xy = s.trim().split("\\s+");
-                    PointF point = new PointF(cssValueToDevicePixels(xy[0], bounds.width(), density), cssValueToDevicePixels(xy[1], bounds.height(), density));
+                for (String[] xy : this.clipPathPolygonPointsCache) {
+
+                    PointF point = new PointF(
+                            cssValueToDevicePixels(xy[0], bounds.width(), this.density),
+                            cssValueToDevicePixels(xy[1], bounds.height(), this.density)
+                    );
 
                     if (firstPoint == null) {
                         firstPoint = point;
+                        // Start the path
                         path.moveTo(point.x, point.y);
                     }
 
                     path.lineTo(point.x, point.y);
                 }
+                // Close the path
                 if (firstPoint != null){
                     path.lineTo(firstPoint.x, firstPoint.y);
                 }
@@ -287,108 +367,132 @@ public class BorderDrawable extends ColorDrawable {
         }
     }
 
-    private BackgroundDrawParams getDrawParams(float width, float height) {
-        BackgroundDrawParams res = new BackgroundDrawParams();
+    private static final String EMPTY = "";
+    private static final String NO_REPEAT = "no-repeat";
+    private static final String REPEAT_X = "repeat-x";
+    private static final String REPEAT_Y = "repeat-y";
+    private static final String PERCENT = "%";
+    private static final String PX = "px";
+    private static final String NUMBER = "number";
+    private static final String IDENT = "ident";
+    private static final String COVER = "cover";
+    private static final String CONTAIN = "contain";
+    private static final String LEFT = "left";
+    private static final String TOP = "top";
+    private static final String CENTER = "center";
+    private static final String RIGHT = "right";
+    private static final String BOTTOM = "bottom";
+    private static BackgroundDrawParams getBackgroundDrawParams(
+            float width,
+            float height,
+            Bitmap backgroundImage,
+            String backgroundRepeat,
+            String backgroundPosition,
+            CSSValue[] backgroundPositionParsedCSSValues,
+            String backgroundSize,
+            CSSValue[] backgroundSizeParsedCSSValues
+    ) {
+        BackgroundDrawParams result = new BackgroundDrawParams();
 
         // repeat
-        if (this.backgroundRepeat != null && !this.backgroundRepeat.isEmpty()) {
-            switch (this.backgroundRepeat.toLowerCase(Locale.ENGLISH)) {
-                case "no-repeat":
-                    res.repeatX = false;
-                    res.repeatY = false;
+        if (!Objects.isNullOrEmpty(backgroundRepeat)) {
+            switch (backgroundRepeat.toLowerCase(Locale.ENGLISH)) {
+                case NO_REPEAT:
+                    result.repeatX = false;
+                    result.repeatY = false;
                     break;
 
-                case "repeat-x":
-                    res.repeatY = false;
+                case REPEAT_X:
+                    result.repeatY = false;
                     break;
 
-                case "repeat-y":
-                    res.repeatX = false;
+                case REPEAT_Y:
+                    result.repeatX = false;
                     break;
             }
         }
 
-        float imageWidth = this.backgroundImageWidth;
-        float imageHeight = this.backgroundImageHeight;
+        float imageWidth = backgroundImage.getWidth();
+        float imageHeight = backgroundImage.getHeight();
 
         // size
-        if (this.backgroundSize != null && !this.backgroundSize.isEmpty()) {
-            if (this.backgroundSizeParsedCSSValues.length == 2) {
-                CSSValue vx = this.backgroundSizeParsedCSSValues[0];
-                CSSValue vy = this.backgroundSizeParsedCSSValues[1];
-                if ("%".equals(vx.getUnit()) && "%".equals(vy.getUnit())) {
-                    imageWidth = width * vx.getValue() / 100;
-                    imageHeight = height * vy.getValue() / 100;
+        if (!Objects.isNullOrEmpty(backgroundSize)) {
+            if (backgroundSizeParsedCSSValues.length == 2) {
+                CSSValue vx = backgroundSizeParsedCSSValues[0];
+                CSSValue vy = backgroundSizeParsedCSSValues[1];
+                if (PERCENT.equals(vx.getUnit()) && PERCENT.equals(vy.getUnit())) {
+                    imageWidth = width * vx.getValue() / 100f;
+                    imageHeight = height * vy.getValue() / 100f;
 
-                    res.sizeX = imageWidth;
-                    res.sizeY = imageHeight;
+                    result.sizeX = imageWidth;
+                    result.sizeY = imageHeight;
                 }
-                else if ("number".equals(vx.getType()) && "number".equals(vy.getType()) &&
-                        (("px".equals(vx.getUnit()) && "px".equals(vy.getUnit())) || ((vx.getUnit() == null || vx.getUnit().isEmpty()) && (vy.getUnit() == null || vy.getUnit().isEmpty())))) {
+                else if (NUMBER.equals(vx.getType()) && NUMBER.equals(vy.getType()) &&
+                        ((PX.equals(vx.getUnit()) && PX.equals(vy.getUnit())) || ((vx.getUnit() == null || vx.getUnit().isEmpty()) && (vy.getUnit() == null || vy.getUnit().isEmpty())))) {
                     imageWidth = vx.getValue();
                     imageHeight = vy.getValue();
 
-                    res.sizeX = imageWidth;
-                    res.sizeY = imageHeight;
+                    result.sizeX = imageWidth;
+                    result.sizeY = imageHeight;
                 }
             }
-            else if (this.backgroundSizeParsedCSSValues.length == 1 && "ident".equals(this.backgroundSizeParsedCSSValues[0].getType())) {
-                float scale = 0;
+            else if (backgroundSizeParsedCSSValues.length == 1 && IDENT.equals(backgroundSizeParsedCSSValues[0].getType())) {
+                float scale = 0f;
 
-                if ("cover".equals(this.backgroundSizeParsedCSSValues[0].getString())) {
+                if (COVER.equals(backgroundSizeParsedCSSValues[0].getString())) {
                     scale = Math.max(width / imageWidth, height / imageHeight);
                 }
-                else if ("contain".equals(this.backgroundSizeParsedCSSValues[0].getString())) {
+                else if (CONTAIN.equals(backgroundSizeParsedCSSValues[0].getString())) {
                     scale = Math.min(width / imageWidth, height / imageHeight);
                 }
 
-                if (scale > 0) {
+                if (scale > 0f) {
                     imageWidth *= scale;
                     imageHeight *= scale;
 
-                    res.sizeX = imageWidth;
-                    res.sizeY = imageHeight;
+                    result.sizeX = imageWidth;
+                    result.sizeY = imageHeight;
                 }
             }
         }
 
         // position
-        if (this.backgroundPosition != null && !this.backgroundPosition.isEmpty()) {
-            CSSValue[] xy = parsePosition(this.backgroundPositionParsedCSSValues);
+        if (!Objects.isNullOrEmpty(backgroundPosition)) {
+            CSSValue[] xy = parsePosition(backgroundPositionParsedCSSValues);
             if (xy != null) {
                 CSSValue vx = xy[0];
                 CSSValue vy = xy[1];
                 float spaceX = width - imageWidth;
                 float spaceY = height - imageHeight;
 
-                if ("%".equals(vx.getUnit()) && "%".equals(vy.getUnit())) {
-                    res.posX = spaceX * vx.getValue() / 100;
-                    res.posY = spaceY * vy.getValue() / 100;
+                if (PERCENT.equals(vx.getUnit()) && PERCENT.equals(vy.getUnit())) {
+                    result.posX = spaceX * vx.getValue() / 100f;
+                    result.posY = spaceY * vy.getValue() / 100f;
                 }
-                else if ("number".equals(vx.getType()) && "number".equals(vy.getType()) &&
-                        (("px".equals(vx.getUnit()) && "px".equals(vy.getUnit())) || ((vx.getUnit() == null || vx.getUnit().isEmpty()) && (vy.getUnit() == null || vy.getUnit().isEmpty())))) {
-                    res.posX = vx.getValue();
-                    res.posY = vy.getValue();
+                else if (NUMBER.equals(vx.getType()) && NUMBER.equals(vy.getType()) &&
+                        ((PX.equals(vx.getUnit()) && PX.equals(vy.getUnit())) || ((vx.getUnit() == null || vx.getUnit().isEmpty()) && (vy.getUnit() == null || vy.getUnit().isEmpty())))) {
+                    result.posX = vx.getValue();
+                    result.posY = vy.getValue();
                 }
-                else if ("ident".equals(vx.getType()) && "ident".equals(vy.getType())) {
-                    if ("center".equals(vx.getString().toLowerCase(Locale.ENGLISH))) {
-                        res.posX = spaceX / 2;
+                else if (IDENT.equals(vx.getType()) && IDENT.equals(vy.getType())) {
+                    if (CENTER.equals(vx.getString().toLowerCase(Locale.ENGLISH))) {
+                        result.posX = spaceX / 2f;
                     }
-                    else if ("right".equals(vx.getString().toLowerCase(Locale.ENGLISH))) {
-                        res.posX = spaceX;
+                    else if (RIGHT.equals(vx.getString().toLowerCase(Locale.ENGLISH))) {
+                        result.posX = spaceX;
                     }
 
-                    if ("center".equals(vy.getString().toLowerCase(Locale.ENGLISH))) {
-                        res.posY = spaceY / 2;
+                    if (CENTER.equals(vy.getString().toLowerCase(Locale.ENGLISH))) {
+                        result.posY = spaceY / 2f;
                     }
-                    else if ("bottom".equals(vy.getString().toLowerCase(Locale.ENGLISH))) {
-                        res.posY = spaceY;
+                    else if (BOTTOM.equals(vy.getString().toLowerCase(Locale.ENGLISH))) {
+                        result.posY = spaceY;
                     }
                 }
             }
         }
 
-        return res;
+        return result;
     }
 
     private static CSSValue[] parsePosition(CSSValue[] values) {
@@ -397,18 +501,18 @@ public class BorderDrawable extends ColorDrawable {
         }
 
         CSSValue[] result = null;
-        if (values.length == 1 && "ident".equals(values[0].getType())) {
+        if (values.length == 1 && IDENT.equals(values[0].getType())) {
             String val = values[0].getString().toLowerCase(Locale.ENGLISH);
-            CSSValue center = new CSSValue("ident", "center", null, 0);
+            CSSValue center = new CSSValue(IDENT, CENTER, null, 0);
 
             // If you only one keyword is specified, the other value is "center"
-            if ("left".equals(val) || "right".equals(val)) {
+            if (LEFT.equals(val) || RIGHT.equals(val)) {
                 result  = new CSSValue[] {values[0], center};
             }
-            else if ("top".equals(val) || "bottom".equals(val)) {
+            else if (TOP.equals(val) || BOTTOM.equals(val)) {
                 result  = new CSSValue[] {center, values[0]};
             }
-            else if ("center".equals(val)) {
+            else if (CENTER.equals(val)) {
                 result  = new CSSValue[] {center, center};
             }
         }
@@ -420,31 +524,24 @@ public class BorderDrawable extends ColorDrawable {
         float result;
         source = source.trim();
 
-        if (source.contains("px")) {
-            result = Float.parseFloat(source.replace("px", ""));
+        if (source.indexOf(PX) > -1) {
+            result = Float.parseFloat(source.replace(PX, EMPTY));
         }
-        else if (source.contains("%") && total > 0) {
-            result = (Float.parseFloat(source.replace("%", "")) / 100) * toDeviceIndependentPixels(total, density);
-        } else {
+        else if (source.indexOf(PERCENT) > -1 && total > 0f) {
+            result = (Float.parseFloat(source.replace(PERCENT, EMPTY)) / 100f) * (total / density);
+        }
+        else {
             result = Float.parseFloat(source);
         }
-        return toDevicePixels(result, density);
+        return result * density;
     }
+}
 
-    private static float toDevicePixels(float value, float density) {
-        return value * density;
-    }
-
-    private static float toDeviceIndependentPixels(float value, float density) {
-        return value / density;
-    }
-
-    private class BackgroundDrawParams {
-        private boolean repeatX = true;
-        private boolean repeatY = true;
-        private float posX;
-        private float posY;
-        private float sizeX;
-        private float sizeY;
-    }
+class BackgroundDrawParams {
+    public boolean repeatX = true;
+    public boolean repeatY = true;
+    public float posX;
+    public float posY;
+    public float sizeX;
+    public float sizeY;
 }
