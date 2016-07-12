@@ -17,24 +17,149 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Stack;
 
-import android.app.Application;
+import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.AsyncTask;
-import android.util.DisplayMetrics;
+import android.util.Base64;
 
 import java.net.CookieManager;
 
 public class Async
 {
-	public interface CompleteCallback
-	{
-		void onComplete(Object result, Object context);
+	public interface CompleteCallback {
+		void onComplete(Object result, Object tag);
 	}
 
-	public static void DownloadImage(String url, CompleteCallback callback, Object context)
-	{
-		new ImageDownloadTask(callback, context).execute(url);
+	public static class Image {
+		/*
+		* The request id parameter is needed for the sake of the JavaScript implementation.
+		* Because we want to use only one extend of the CompleteCallback interface (for the sake of better performance)
+		* we use this id to detect the initial request, which result is currently received in the complete callback.
+		* When the async task completes it will pass back this id to JavaScript.
+		*/
+		public static void fromResource(String name, Context context, int requestId, CompleteCallback callback) {
+			new LoadImageFromResourceTask(context, requestId, callback).execute(name);
+		}
+
+		public static void fromFile(String fileName, int requestId, CompleteCallback callback) {
+			new LoadImageFromFileTask(requestId, callback).execute(fileName);
+		}
+
+		public static void fromBase64(String source, int requestId, CompleteCallback callback) {
+			new LoadImageFromBase64StringTask(requestId, callback).execute(source);
+		}
+
+		public static void download(String url, CompleteCallback callback, Object context) {
+			new DownloadImageTask(callback, context).execute(url);
+		}
+
+		static class DownloadImageTask extends AsyncTask<String, Void, Bitmap> {
+			private CompleteCallback callback;
+			private Object context;
+
+			public DownloadImageTask(CompleteCallback callback, Object context) {
+				this.callback = callback;
+				this.context = context;
+			}
+
+			protected Bitmap doInBackground(String... params) {
+				InputStream stream = null;
+				try {
+					stream = new java.net.URL(params[0]).openStream();
+					Bitmap bmp = BitmapFactory.decodeStream(stream);
+					return bmp;
+				} catch (MalformedURLException e) {
+					e.printStackTrace();
+					return null;
+				} catch (IOException e) {
+					e.printStackTrace();
+					return null;
+				} finally {
+					if (stream != null) {
+						try {
+							stream.close();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+
+			protected void onPostExecute(final Bitmap result) {
+				this.callback.onComplete(result, this.context);
+			}
+		}
+
+		static class LoadImageFromResourceTask extends AsyncTask<String, Void, Bitmap> {
+			private CompleteCallback callback;
+			private Context context;
+			private int requestId;
+
+			public LoadImageFromResourceTask(Context context, int requestId, CompleteCallback callback) {
+				this.callback = callback;
+				this.context = context;
+				this.requestId = requestId;
+			}
+
+			protected Bitmap doInBackground(String... params) {
+				String name = params[0];
+				Resources res = this.context.getResources();
+				int id = res.getIdentifier(name, "drawable", context.getPackageName());
+
+				if (id > 0) {
+					BitmapDrawable result = (BitmapDrawable) res.getDrawable(id);
+					return result.getBitmap();
+				}
+
+				return null;
+			}
+
+			protected void onPostExecute(final Bitmap result) {
+				this.callback.onComplete(result, this.requestId);
+			}
+		}
+
+		static class LoadImageFromFileTask extends AsyncTask<String, Void, Bitmap> {
+			private CompleteCallback callback;
+			private int requestId;
+
+			public LoadImageFromFileTask(int requestId, CompleteCallback callback) {
+				this.callback = callback;
+				this.requestId = requestId;
+			}
+
+			protected Bitmap doInBackground(String... params) {
+				String fileName = params[0];
+				return BitmapFactory.decodeFile(fileName);
+			}
+
+			protected void onPostExecute(final Bitmap result) {
+				this.callback.onComplete(result, this.requestId);
+			}
+		}
+
+		static class LoadImageFromBase64StringTask extends AsyncTask<String, Void, Bitmap> {
+			private CompleteCallback callback;
+			private int requestId;
+
+			public LoadImageFromBase64StringTask(int requestId, CompleteCallback callback) {
+				this.callback = callback;
+				this.requestId = requestId;
+			}
+
+			protected Bitmap doInBackground(String... params) {
+				String source = params[0];
+				byte[] bytes = Base64.decode(source, Base64.DEFAULT);
+				return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+			}
+
+			protected void onPostExecute(final Bitmap result) {
+				this.callback.onComplete(result, this.requestId);
+			}
+		}
 	}
 
 	public static class Http
@@ -88,7 +213,7 @@ public class Async
 				OutputStream outStream = connection.getOutputStream();
 				openedStreams.push(outStream);
 
-				OutputStreamWriter writer = new java.io.OutputStreamWriter(outStream);
+				OutputStreamWriter writer = new OutputStreamWriter(outStream);
 				openedStreams.push(writer);
 
 				writer.write((String) this.content);
@@ -97,7 +222,7 @@ public class Async
 
 		public static class RequestResult
 		{
-			public static final class ByteArrayOutputStream2 extends java.io.ByteArrayOutputStream
+			public static final class ByteArrayOutputStream2 extends ByteArrayOutputStream
 			{
 				public ByteArrayOutputStream2()
 				{
@@ -138,11 +263,11 @@ public class Async
 					return;
 				}
 
-				for (int i = 0; i < size - 1; i++)
-				{
-					String key = connection.getHeaderFieldKey(i);
-					String value = connection.getHeaderField(key);
-					this.headers.add(new KeyValuePair(key, value));
+				for (Map.Entry<String, List<String>> entry: headers.entrySet()) {
+					String key = entry.getKey();
+					for (String value: entry.getValue()) {
+						this.headers.add(new KeyValuePair(key, value));
+					}
 				}
 			}
 
@@ -171,7 +296,7 @@ public class Async
 
 				openedStreams.push(inStream);
 
-				BufferedInputStream buffer = new java.io.BufferedInputStream(inStream, 4096);
+				BufferedInputStream buffer = new BufferedInputStream(inStream, 4096);
 				openedStreams.push(buffer);
 
 				ByteArrayOutputStream2 responseStream = contentLength != -1 ? new ByteArrayOutputStream2(contentLength) : new ByteArrayOutputStream2();
@@ -344,58 +469,6 @@ public class Async
 					stream.close();
 				}
 			}
-		}
-	}
-
-	static class ImageDownloadTask extends AsyncTask<String, Void, Bitmap>
-	{
-		private CompleteCallback callback;
-		private Object context;
-
-		public ImageDownloadTask(CompleteCallback callback, Object context)
-		{
-			this.callback = callback;
-			this.context = context;
-		}
-
-		protected Bitmap doInBackground(String... params)
-		{
-			InputStream stream = null;
-			try
-			{
-				stream = new java.net.URL(params[0]).openStream();
-				Bitmap bmp = BitmapFactory.decodeStream(stream);
-				return bmp;
-			}
-			catch (MalformedURLException e)
-			{
-				e.printStackTrace();
-				return null;
-			}
-			catch (IOException e)
-			{
-				e.printStackTrace();
-				return null;
-			}
-			finally
-			{
-				if (stream != null)
-				{
-					try
-					{
-						stream.close();
-					}
-					catch (IOException e)
-					{
-						e.printStackTrace();
-					}
-				}
-			}
-		}
-
-		protected void onPostExecute(final Bitmap result)
-		{
-			this.callback.onComplete(result, this.context);
 		}
 	}
 }
