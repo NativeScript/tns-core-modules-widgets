@@ -268,6 +268,13 @@ public class BorderDrawable extends ColorDrawable {
         this.backgroundSizeParsedCSSValues = backgroundSizeParsedCSSValues;
 
         this.invalidateSelf();
+    }    
+
+    @Override
+    public boolean getPadding(Rect padding) {
+        padding.set((int)this.borderLeftWidth, (int)this.borderTopWidth, (int)this.borderRightWidth, (int)this.borderBottomWidth);
+
+        return this.borderLeftWidth != 0 && this.borderTopWidth != 0 && this.borderRightWidth != 0 && this.borderBottomWidth != 0;
     }
 
     @Override
