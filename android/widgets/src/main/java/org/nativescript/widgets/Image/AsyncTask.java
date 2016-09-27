@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.nativescript.widgets.ImageCache;
+package org.nativescript.widgets.Image;
 
 import android.annotation.TargetApi;
 import android.os.Handler;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.nativescript.widgets.ImageCache;
+package org.nativescript.widgets.Image;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -34,9 +34,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 /**
- * A simple subclass of {@link ImageResizer} that fetch and resize images from a file, resource or URL.
+ * A simple subclass of {@link Resizer} that fetch and resize images from a file, resource or URL.
  */
-public class ImageFetcher extends ImageResizer {
+public class Fetcher extends Resizer {
     private static final String RESOURCE_PREFIX = "res://";
     private static final String FILE_PREFIX = "file:///";
     private static final int HTTP_CACHE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -57,10 +57,10 @@ public class ImageFetcher extends ImageResizer {
      *
      * @param context
      */
-    public ImageFetcher(Context context) {
+    public Fetcher(Context context) {
         super(context);
         checkConnection(context);
-        mHttpCacheDir = ImageCache.getDiskCacheDir(context, HTTP_CACHE_DIR);
+        mHttpCacheDir = Cache.getDiskCacheDir(context, HTTP_CACHE_DIR);
         mPackageName = context.getPackageName();
     }
 
@@ -75,7 +75,7 @@ public class ImageFetcher extends ImageResizer {
             mHttpCacheDir.mkdirs();
         }
         synchronized (mHttpDiskCacheLock) {
-            if (ImageCache.getUsableSpace(mHttpCacheDir) > HTTP_CACHE_SIZE) {
+            if (Cache.getUsableSpace(mHttpCacheDir) > HTTP_CACHE_SIZE) {
                 try {
                     mHttpDiskCache = DiskLruCache.open(mHttpCacheDir, 1, 1, HTTP_CACHE_SIZE);
                     if (debuggable > 0) {
@@ -162,7 +162,7 @@ public class ImageFetcher extends ImageResizer {
     }
 
     /**
-     * The main process method, which will be called by the ImageWorker in the AsyncTask background
+     * The main process method, which will be called by the Worker in the AsyncTask background
      * thread.
      *
      * @param data The data to load the bitmap, in this case, a regular http URL
@@ -173,7 +173,7 @@ public class ImageFetcher extends ImageResizer {
             Log.v(TAG, "processBitmap - " + data);
         }
 
-        final String key = ImageCache.hashKeyForDisk(data);
+        final String key = Cache.hashKeyForDisk(data);
         FileDescriptor fileDescriptor = null;
         FileInputStream fileInputStream = null;
         DiskLruCache.Snapshot snapshot;

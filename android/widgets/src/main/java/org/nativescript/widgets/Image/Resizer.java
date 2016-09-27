@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.nativescript.widgets.ImageCache;
+package org.nativescript.widgets.Image;
 
 import android.annotation.TargetApi;
 import android.content.Context;
@@ -25,12 +25,12 @@ import android.os.Build;
 import java.io.FileDescriptor;
 
 /**
- * A simple subclass of {@link ImageWorker} that resize images given a target width
+ * A simple subclass of {@link Worker} that resize images given a target width
  * and height. Useful for when the input images might be too large to simply load directly into
  * memory.
  */
-public abstract class ImageResizer extends ImageWorker {
-    protected ImageResizer(Context context) {
+public abstract class Resizer extends Worker {
+    protected Resizer(Context context) {
         super(context);
     }
     /**
@@ -40,12 +40,12 @@ public abstract class ImageResizer extends ImageWorker {
      * @param resId The resource id of the image data
      * @param reqWidth The requested width of the resulting bitmap
      * @param reqHeight The requested height of the resulting bitmap
-     * @param cache The ImageCache used to find candidate bitmaps for use with inBitmap
+     * @param cache The Cache used to find candidate bitmaps for use with inBitmap
      * @return A bitmap sampled down from the original with the same aspect ratio and dimensions
      *         that are equal to or greater than the requested width and height
      */
     public static Bitmap decodeSampledBitmapFromResource(Resources res, int resId,
-            int reqWidth, int reqHeight, ImageCache cache) {
+            int reqWidth, int reqHeight, Cache cache) {
 
         // BEGIN_INCLUDE (read_bitmap_dimensions)
         // First decode with inJustDecodeBounds=true to check dimensions
@@ -80,12 +80,12 @@ public abstract class ImageResizer extends ImageWorker {
      * @param filename The full path of the file to decode
      * @param reqWidth The requested width of the resulting bitmap
      * @param reqHeight The requested height of the resulting bitmap
-     * @param cache The ImageCache used to find candidate bitmaps for use with inBitmap
+     * @param cache The Cache used to find candidate bitmaps for use with inBitmap
      * @return A bitmap sampled down from the original with the same aspect ratio and dimensions
      *         that are equal to or greater than the requested width and height
      */
     public static Bitmap decodeSampledBitmapFromFile(String filename,
-            int reqWidth, int reqHeight, ImageCache cache) {
+            int reqWidth, int reqHeight, Cache cache) {
 
         // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
@@ -117,12 +117,12 @@ public abstract class ImageResizer extends ImageWorker {
      * @param fileDescriptor The file descriptor to read from
      * @param reqWidth The requested width of the resulting bitmap
      * @param reqHeight The requested height of the resulting bitmap
-     * @param cache The ImageCache used to find candidate bitmaps for use with inBitmap
+     * @param cache The Cache used to find candidate bitmaps for use with inBitmap
      * @return A bitmap sampled down from the original with the same aspect ratio and dimensions
      *         that are equal to or greater than the requested width and height
      */
     public static Bitmap decodeSampledBitmapFromDescriptor(
-            FileDescriptor fileDescriptor, int reqWidth, int reqHeight, ImageCache cache) {
+            FileDescriptor fileDescriptor, int reqWidth, int reqHeight, Cache cache) {
 
         // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
@@ -202,7 +202,7 @@ public abstract class ImageResizer extends ImageWorker {
     }
 
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    private static void addInBitmapOptions(BitmapFactory.Options options, ImageCache cache) {
+    private static void addInBitmapOptions(BitmapFactory.Options options, Cache cache) {
         //BEGIN_INCLUDE(add_bitmap_options)
         // inBitmap only works with mutable bitmaps so force the decoder to
         // return mutable bitmaps.

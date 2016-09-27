@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.nativescript.widgets.ImageCache;
+package org.nativescript.widgets.Image;
 
 import android.annotation.TargetApi;
 import android.content.Context;
@@ -45,12 +45,12 @@ import java.util.Set;
 
 /**
  * This class handles disk and memory caching of bitmaps in conjunction with the
- * {@link ImageWorker} class and its subclasses. Use
- * {@link ImageCache#getInstance(ImageCacheParams)} to get an instance of this
- * class, although usually a cache should be added directly to an {@link ImageWorker} by calling
- * {@link ImageWorker#addImageCache(ImageCache)}.
+ * {@link Worker} class and its subclasses. Use
+ * {@link Cache#getInstance(CacheParams)} to get an instance of this
+ * class, although usually a cache should be added directly to an {@link Worker} by calling
+ * {@link Worker#addImageCache(Cache)}.
  */
-public class ImageCache {
+public class Cache {
     private static final String TAG = "JS";
 
     // Default memory cache size in kilobytes
@@ -71,40 +71,40 @@ public class ImageCache {
 
     private static final String IMAGE_CACHE_DIR = "images";
 
-    private static ImageCache instance;
+    private static Cache instance;
     private DiskLruCache mDiskLruCache;
     private LruCache<String, BitmapDrawable> mMemoryCache;
-    private ImageCacheParams mCacheParams;
+    private CacheParams mParams;
     private final Object mDiskCacheLock = new Object();
     private boolean mDiskCacheStarting = true;
 
     private Set<SoftReference<Bitmap>> mReusableBitmaps;
 
-    private ImageFetcher mImageFetcher;
+    private Fetcher mFetcher;
 
     /**
-     * Create a new ImageCache object using the specified parameters. This should not be
+     * Create a new Cache object using the specified parameters. This should not be
      * called directly by other classes, instead use
-     * {@link ImageCache#getInstance(ImageCacheParams)} to fetch an ImageCache
+     * {@link Cache#getInstance(CacheParams)} to fetch an Cache
      * instance.
      *
      * @param cacheParams The cache parameters to use to initialize the cache
      */
-    private ImageCache(ImageCacheParams cacheParams) {
+    private Cache(CacheParams cacheParams) {
         init(cacheParams);
     }
 
     /**
-     * Return an {@link ImageCache} instance.
+     * Return an {@link Cache} instance.
      *
-     * @return An existing retained ImageCache object or a new one if one did not exist
+     * @return An existing retained Cache object or a new one if one did not exist
      */
-    public static ImageCache getInstance(ImageCacheParams cacheParams) {
+    public static Cache getInstance(CacheParams cacheParams) {
         if (instance == null) {
-            instance = new ImageCache(cacheParams);
+            instance = new Cache(cacheParams);
             instance.init(cacheParams);
         }
-        else if (instance.mCacheParams != cacheParams) {
+        else if (instance.mParams != cacheParams) {
             instance.init(cacheParams);
         }
 
@@ -116,14 +116,14 @@ public class ImageCache {
      *
      * @param cacheParams The cache parameters to initialize the cache
      */
-    private void init(ImageCacheParams cacheParams) {
-        mCacheParams = cacheParams;
+    private void init(CacheParams cacheParams) {
+        mParams = cacheParams;
 
         //BEGIN_INCLUDE(init_memory_cache)
         // Set up memory cache
-        if (mCacheParams.memoryCacheEnabled) {
-            if (ImageWorker.debuggable > 0) {
-                Log.v(TAG, "Memory cache created (size = " + mCacheParams.memCacheSize + ")");
+        if (mParams.memoryCacheEnabled) {
+            if (Worker.debuggable > 0) {
+                Log.v(TAG, "Memory cache created (size = " + mParams.memCacheSize + ")");
             }
 
             // If we're running on Honeycomb or newer, create a set of reusable bitmaps that can be
@@ -140,7 +140,7 @@ public class ImageCache {
                         Collections.synchronizedSet(new HashSet<SoftReference<Bitmap>>());
             }
 
-            mMemoryCache = new LruCache<String, BitmapDrawable>(mCacheParams.memCacheSize) {
+            mMemoryCache = new LruCache<String, BitmapDrawable>(mParams.memCacheSize) {
 
                 /**
                  * Notify the removed entry that is no longer being cached
@@ -178,7 +178,7 @@ public class ImageCache {
 
     /**
      * Initializes the disk cache.  Note that this includes disk access so this should not be
-     * executed on the main/UI thread. By default an ImageCache does not initialize the disk
+     * executed on the main/UI thread. By default an Cache does not initialize the disk
      * cache when it is created, instead you should call initDiskCache() to initialize it on a
      * background thread.
      */
@@ -186,20 +186,20 @@ public class ImageCache {
         // Set up disk cache
         synchronized (mDiskCacheLock) {
             if (mDiskLruCache == null || mDiskLruCache.isClosed()) {
-                File diskCacheDir = mCacheParams.diskCacheDir;
-                if (mCacheParams.diskCacheEnabled && diskCacheDir != null) {
+                File diskCacheDir = mParams.diskCacheDir;
+                if (mParams.diskCacheEnabled && diskCacheDir != null) {
                     if (!diskCacheDir.exists()) {
                         diskCacheDir.mkdirs();
                     }
-                    if (getUsableSpace(diskCacheDir) > mCacheParams.diskCacheSize) {
+                    if (getUsableSpace(diskCacheDir) > mParams.diskCacheSize) {
                         try {
                             mDiskLruCache = DiskLruCache.open(
-                                    diskCacheDir, 1, 1, mCacheParams.diskCacheSize);
-                            if (ImageWorker.debuggable > 0) {
+                                    diskCacheDir, 1, 1, mParams.diskCacheSize);
+                            if (Worker.debuggable > 0) {
                                 Log.v(TAG, "Disk cache initialized");
                             }
                         } catch (final IOException e) {
-                            mCacheParams.diskCacheDir = null;
+                            mParams.diskCacheDir = null;
                             Log.e(TAG, "initDiskCache - " + e);
                         }
                     }
@@ -243,7 +243,7 @@ public class ImageCache {
                         if (editor != null) {
                             out = editor.newOutputStream(DISK_CACHE_INDEX);
                             value.getBitmap().compress(
-                                    mCacheParams.compressFormat, mCacheParams.compressQuality, out);
+                                    mParams.compressFormat, mParams.compressQuality, out);
                             editor.commit();
                             out.close();
                         }
@@ -281,7 +281,7 @@ public class ImageCache {
             memValue = mMemoryCache.get(data);
         }
 
-        if (ImageWorker.debuggable > 0 && memValue != null) {
+        if (Worker.debuggable > 0 && memValue != null) {
             Log.v(TAG, "Memory cache hit");
         }
 
@@ -312,7 +312,7 @@ public class ImageCache {
                 try {
                     final DiskLruCache.Snapshot snapshot = mDiskLruCache.get(key);
                     if (snapshot != null) {
-                        if (ImageWorker.debuggable > 0) {
+                        if (Worker.debuggable > 0) {
                             Log.v(TAG, "Disk cache hit");
                         }
                         inputStream = snapshot.getInputStream(DISK_CACHE_INDEX);
@@ -321,7 +321,7 @@ public class ImageCache {
 
                             // Decode bitmap, but we don't want to sample so give
                             // MAX_VALUE as the target dimensions
-                            bitmap = ImageResizer.decodeSampledBitmapFromDescriptor(
+                            bitmap = Resizer.decodeSampledBitmapFromDescriptor(
                                     fd, Integer.MAX_VALUE, Integer.MAX_VALUE, this);
                         }
                     }
@@ -379,13 +379,13 @@ public class ImageCache {
     }
 
     /**
-     * Clears both the memory and disk cache associated with this ImageCache object. Note that
+     * Clears both the memory and disk cache associated with this Cache object. Note that
      * this includes disk access so this should not be executed on the main/UI thread.
      */
     public void clearCache() {
         if (mMemoryCache != null) {
             mMemoryCache.evictAll();
-            if (ImageWorker.debuggable > 0) {
+            if (Worker.debuggable > 0) {
                 Log.v(TAG, "Memory cache cleared");
             }
         }
@@ -395,7 +395,7 @@ public class ImageCache {
             if (mDiskLruCache != null && !mDiskLruCache.isClosed()) {
                 try {
                     mDiskLruCache.delete();
-                    if (ImageWorker.debuggable > 0) {
+                    if (Worker.debuggable > 0) {
                         Log.v(TAG, "Disk cache cleared");
                     }
                 } catch (IOException e) {
@@ -408,7 +408,7 @@ public class ImageCache {
     }
 
     /**
-     * Flushes the disk cache associated with this ImageCache object. Note that this includes
+     * Flushes the disk cache associated with this Cache object. Note that this includes
      * disk access so this should not be executed on the main/UI thread.
      */
     public void flush() {
@@ -416,7 +416,7 @@ public class ImageCache {
             if (mDiskLruCache != null) {
                 try {
                     mDiskLruCache.flush();
-                    if (ImageWorker.debuggable > 0) {
+                    if (Worker.debuggable > 0) {
                         Log.v(TAG, "Disk cache flushed");
                     }
                 } catch (IOException e) {
@@ -427,7 +427,7 @@ public class ImageCache {
     }
 
     /**
-     * Closes the disk cache associated with this ImageCache object. Note that this includes
+     * Closes the disk cache associated with this Cache object. Note that this includes
      * disk access so this should not be executed on the main/UI thread.
      */
     public void close() {
@@ -437,7 +437,7 @@ public class ImageCache {
                     if (!mDiskLruCache.isClosed()) {
                         mDiskLruCache.close();
                         mDiskLruCache = null;
-                        if (ImageWorker.debuggable > 0) {
+                        if (Worker.debuggable > 0) {
                             Log.v(TAG, "Disk cache closed");
                         }
                     }
@@ -451,7 +451,7 @@ public class ImageCache {
     /**
      * A holder class that contains cache parameters.
      */
-    public static class ImageCacheParams {
+    public static class CacheParams {
         public int memCacheSize = DEFAULT_MEM_CACHE_SIZE;
         public int diskCacheSize = DEFAULT_DISK_CACHE_SIZE;
         public File diskCacheDir;
@@ -462,14 +462,14 @@ public class ImageCache {
 
         /**
          * Create a set of image cache parameters that can be provided to
-         * {@link ImageCache#getInstance(ImageCacheParams)}.
+         * {@link Cache#getInstance(CacheParams)}.
          *
          * @param context                A context to use.
          * @param diskCacheDirectoryName A unique subdirectory name that will be appended to the
          *                               application cache directory. Usually "cache" or "images"
          *                               is sufficient.
          */
-        public ImageCacheParams(Context context, String diskCacheDirectoryName) {
+        public CacheParams(Context context, String diskCacheDirectoryName) {
             diskCacheDir = getDiskCacheDir(context, diskCacheDirectoryName);
         }
 

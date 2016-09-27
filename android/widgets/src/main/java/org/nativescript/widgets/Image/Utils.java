@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-package org.nativescript.widgets.ImageCache;
+package org.nativescript.widgets.Image;
 
 import android.annotation.TargetApi;
-import android.content.Context;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.StrictMode;
-import android.util.Log;
 
 /**
  * Class containing some static utility methods.

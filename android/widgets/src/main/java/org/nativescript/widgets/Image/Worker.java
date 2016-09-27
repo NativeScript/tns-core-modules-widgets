@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.nativescript.widgets.ImageCache;
+package org.nativescript.widgets.Image;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
@@ -35,12 +35,12 @@ import java.lang.ref.WeakReference;
  * ImageView. It handles things like using a memory and disk cache, running the work in a background
  * thread and setting a placeholder image.
  */
-public abstract class ImageWorker {
+public abstract class Worker {
 
     static final String TAG = "JS";
     private static final int FADE_IN_TIME = 200;
 
-    private ImageCache mImageCache;
+    private Cache mCache;
     private Bitmap mLoadingBitmap;
     private boolean mFadeInBitmap = true;
     private boolean mExitTasksEarly = false;
@@ -56,7 +56,7 @@ public abstract class ImageWorker {
 
     protected static int debuggable = -1;
 
-    protected ImageWorker(Context context) {
+    protected Worker(Context context) {
         mResources = context.getResources();
 
         // Negative means not initialized.
@@ -78,9 +78,9 @@ public abstract class ImageWorker {
 
     /**
      * Load an image specified by the data parameter into an ImageView (override
-     * {@link ImageWorker#processBitmap(Object, int, int)} to define the processing logic). A memory and
-     * disk cache will be used if an {@link ImageCache} has been added using
-     * {@link ImageWorker#addImageCache(ImageCache)}. If the
+     * {@link Worker#processBitmap(Object, int, int)} to define the processing logic). A memory and
+     * disk cache will be used if an {@link Cache} has been added using
+     * {@link Worker#addImageCache(Cache)}. If the
      * image is found in the memory cache, it is set immediately, otherwise an {@link AsyncTask}
      * will be created to asynchronously load the bitmap.
      *
@@ -96,8 +96,8 @@ public abstract class ImageWorker {
         BitmapDrawable value = null;
         String dataString = String.valueOf(data);
 
-        if (mImageCache != null && useCache) {
-            value = mImageCache.getBitmapFromMemCache(dataString);
+        if (mCache != null && useCache) {
+            value = mCache.getBitmapFromMemCache(dataString);
         }
 
         if (value == null && !async) {
@@ -105,10 +105,10 @@ public abstract class ImageWorker {
             Bitmap bitmap = processBitmap(data, decodeWidth, decodeHeight);
             if (bitmap != null) {
                 value = new BitmapDrawable(mResources, bitmap);
-                if (mImageCache != null && useCache) {
+                if (mCache != null && useCache) {
                     // Don't add Images loaded from Resources to disk cache.
                     boolean addToDiskCache = !(data instanceof Number);
-                    mImageCache.addBitmapToCache(dataString, value, addToDiskCache);
+                    mCache.addBitmapToCache(dataString, value, addToDiskCache);
                 }
             }
         }
@@ -151,11 +151,11 @@ public abstract class ImageWorker {
     }
 
     /**
-     * Adds an {@link ImageCache} to this {@link ImageWorker} to handle disk and memory bitmap
+     * Adds an {@link Cache} to this {@link Worker} to handle disk and memory bitmap
      * caching. ImageCahce should be initialized before it is passed as parameter.
      */
-    public void addImageCache(ImageCache imageCache) {
-        this.mImageCache = imageCache;
+    public void addImageCache(Cache imageCache) {
+        this.mCache = imageCache;
     }
 
     /**
@@ -176,16 +176,16 @@ public abstract class ImageWorker {
      * example, you could resize a large bitmap here, or pull down an image from the network.
      *
      * @param data The data to identify which image to process, as provided by
-     *            {@link ImageWorker#loadImage(Object, ImageView)}
+     *            {@link Worker#loadImage(Object, ImageView)}
      * @return The processed bitmap
      */
     protected abstract Bitmap processBitmap(Object data, int decodeWidth, int decodeHeight);
 
     /**
-     * @return The {@link ImageCache} object currently being used by this ImageWorker.
+     * @return The {@link Cache} object currently being used by this Worker.
      */
-    protected ImageCache getImageCache() {
-        return mImageCache;
+    protected Cache getImageCache() {
+        return mCache;
     }
 
     /**
@@ -293,9 +293,9 @@ public abstract class ImageWorker {
             // thread and the ImageView that was originally bound to this task is still bound back
             // to this task and our "exit early" flag is not set then try and fetch the bitmap from
             // the cache
-            if (mImageCache != null && !isCancelled() && getAttachedImageView() != null
+            if (mCache != null && !isCancelled() && getAttachedImageView() != null
                     && !mExitTasksEarly && mCacheImage) {
-                bitmap = mImageCache.getBitmapFromDiskCache(dataString);
+                bitmap = mCache.getBitmapFromDiskCache(dataString);
             }
 
             // If the bitmap was not found in the cache and this task has not been cancelled by
@@ -313,10 +313,10 @@ public abstract class ImageWorker {
             // bitmap to our cache as it might be used again in the future
             if (bitmap != null) {
                 drawable = new BitmapDrawable(mResources, bitmap);
-                if (mImageCache != null && mCacheImage) {
+                if (mCache != null && mCacheImage) {
                     // Don't add Images loaded from Resources to disk cache.
                     boolean addToDiskCache = !(mData instanceof Number);
-                    mImageCache.addBitmapToCache(dataString, drawable, addToDiskCache);
+                    mCache.addBitmapToCache(dataString, drawable, addToDiskCache);
                 }
             }
 
@@ -478,27 +478,27 @@ public abstract class ImageWorker {
     }
 
     protected void initDiskCacheInternal() {
-        if (mImageCache != null) {
-            mImageCache.initDiskCache();
+        if (mCache != null) {
+            mCache.initDiskCache();
         }
     }
 
     protected void clearCacheInternal() {
-        if (mImageCache != null) {
-            mImageCache.clearCache();
+        if (mCache != null) {
+            mCache.clearCache();
         }
     }
 
     protected void flushCacheInternal() {
-        if (mImageCache != null) {
-            mImageCache.flush();
+        if (mCache != null) {
+            mCache.flush();
         }
     }
 
     protected void closeCacheInternal() {
-        if (mImageCache != null) {
-            mImageCache.close();
-            mImageCache = null;
+        if (mCache != null) {
+            mCache.close();
+            mCache = null;
         }
     }
 
