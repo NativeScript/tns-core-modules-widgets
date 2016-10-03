@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.nativescript.widgets.Image;
+package org.nativescript.widgets.image;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedWriter;
