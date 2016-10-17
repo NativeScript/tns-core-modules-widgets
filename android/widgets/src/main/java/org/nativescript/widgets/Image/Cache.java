@@ -16,8 +16,10 @@
 
 package org.nativescript.widgets.image;
 
+import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
@@ -417,7 +419,12 @@ public class Cache {
     @TargetApi(VERSION_CODES.FROYO)
     public static File getExternalCacheDir(Context context) {
         if (Utils.hasFroyo()) {
-            return context.getExternalCacheDir();
+            if (Utils.hasKitKat() ||
+                    context.checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, android.os.Process.myPid(), android.os.Process.myUid()) == PackageManager.PERMISSION_GRANTED) {
+                return context.getExternalCacheDir();
+            }
+
+            return null;
         }
 
         // Before Froyo we need to construct the external cache dir ourselves
