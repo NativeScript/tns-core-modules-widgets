@@ -6,6 +6,7 @@ package org.nativescript.widgets;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.view.Gravity;
 import android.view.View;
@@ -230,6 +231,7 @@ public class GridLayout extends LayoutBase {
     }
 
     @Override
+    @TargetApi(17)
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         CommonLayoutParams.adjustChildrenLayoutParams(this, widthMeasureSpec, heightMeasureSpec);
 
@@ -253,7 +255,12 @@ public class GridLayout extends LayoutBase {
 
         int gravity = LayoutBase.getGravity(this);
         int verticalGravity = gravity & Gravity.VERTICAL_GRAVITY_MASK;
-        final int layoutDirection = this.getLayoutDirection();
+        int layoutDirection = 0;
+
+        if (version >= 17) {
+            layoutDirection = this.getLayoutDirection();
+        }
+
         final int horizontalGravity = Gravity.getAbsoluteGravity(gravity, layoutDirection) & Gravity.HORIZONTAL_GRAVITY_MASK;
 
         this.helper.stretchedHorizontally = widthMode == MeasureSpec.EXACTLY || (horizontalGravity == Gravity.FILL_HORIZONTAL && !infinityWidth);

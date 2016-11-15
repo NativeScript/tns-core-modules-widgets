@@ -3,6 +3,7 @@
  */
 package org.nativescript.widgets;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Parcel;
@@ -16,6 +17,7 @@ import android.view.ViewParent;
  *
  */
 public class HorizontalScrollView extends android.widget.HorizontalScrollView {
+    static final int version = android.os.Build.VERSION.SDK_INT;
 
 	private final Rect mTempRect = new Rect();
 	
@@ -191,11 +193,16 @@ public class HorizontalScrollView extends android.widget.HorizontalScrollView {
             this.scrollBy(scrollDelta, 0);
         }
     }
-    
+
+    @TargetApi(17)
     private boolean isLayoutRtl() {
-        return (this.getLayoutDirection() == LAYOUT_DIRECTION_RTL);
+        if (version >= 17) {
+            return (this.getLayoutDirection() == LAYOUT_DIRECTION_RTL);
+        } else {
+            return true;
+        }
     }
-    
+
     /**
      * Return true if child is a descendant of parent, (or equal to the parent).
      */
