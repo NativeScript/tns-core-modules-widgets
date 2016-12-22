@@ -24,4 +24,3 @@ On Mac in the `ios` folder under mac run:
 ./build.sh
 ```
 This will output `ios/build/TNSWidgets.framework`.
-
