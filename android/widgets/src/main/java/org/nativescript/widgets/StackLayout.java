@@ -4,6 +4,7 @@
 package org.nativescript.widgets;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.view.Gravity;
 import android.view.View;
@@ -171,6 +172,7 @@ public class StackLayout extends LayoutBase {
         }
     }
 
+    @TargetApi(17)
     @SuppressLint("RtlHardcoded")
 	private void layoutHorizontal(int left, int top, int right, int bottom) {
 
@@ -182,10 +184,16 @@ public class StackLayout extends LayoutBase {
         int childTop = paddingTop;
         int childLeft = 0;
         int childBottom = bottom - top - paddingBottom;
-        
+
+        int layoutDirection = 0;
+
+        if (version >= 17) {
+            layoutDirection = this.getLayoutDirection();
+        }
+
         int gravity = LayoutBase.getGravity(this);
-        final int horizontalGravity = Gravity.getAbsoluteGravity(gravity, this.getLayoutDirection()) & Gravity.HORIZONTAL_GRAVITY_MASK;
-        
+        final int horizontalGravity = Gravity.getAbsoluteGravity(gravity,  layoutDirection) & Gravity.HORIZONTAL_GRAVITY_MASK;
+
         switch (horizontalGravity) {
             case Gravity.CENTER_HORIZONTAL:
                 childLeft = (right - left - this._totalLength) / 2 + paddingLeft - paddingRight;

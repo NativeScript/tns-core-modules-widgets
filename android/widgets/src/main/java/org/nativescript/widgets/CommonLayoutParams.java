@@ -4,6 +4,7 @@
 package org.nativescript.widgets;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -19,6 +20,7 @@ import android.widget.FrameLayout;
  * @author hhristov
  */
 public class CommonLayoutParams extends FrameLayout.LayoutParams {
+    static final int version = android.os.Build.VERSION.SDK_INT;
 
     static final String TAG = "NSLayout";
     static int debuggable = -1;
@@ -65,6 +67,7 @@ public class CommonLayoutParams extends FrameLayout.LayoutParams {
 
     // We use our own layout method because the one in FrameLayout is broken when margins are set and gravity is CENTER_VERTICAL or CENTER_HORIZONTAL.
     @SuppressLint("RtlHardcoded")
+    @TargetApi(17)
     protected static void layoutChild(View child, int left, int top, int right, int bottom) {
         if (child.getVisibility() == View.GONE) {
             return;
@@ -109,7 +112,13 @@ public class CommonLayoutParams extends FrameLayout.LayoutParams {
                 break;
         }
 
-        int horizontalGravity = Gravity.getAbsoluteGravity(gravity, child.getLayoutDirection()) & Gravity.HORIZONTAL_GRAVITY_MASK;
+        int layoutDirection = 0;
+
+        if (version >= 17) {
+            layoutDirection = child.getLayoutDirection();
+        }
+
+        int horizontalGravity = Gravity.getAbsoluteGravity(gravity, layoutDirection) & Gravity.HORIZONTAL_GRAVITY_MASK;
 
         // If we have explicit width and gravity is FILL we need to be centered otherwise our explicit width won't be taken into account.
         if (lp.width >= 0 && horizontalGravity == Gravity.FILL_HORIZONTAL) {
@@ -368,8 +377,8 @@ public class CommonLayoutParams extends FrameLayout.LayoutParams {
         return sb;
     }
 
+    @TargetApi(17)
     private static int getMeasureSpec(View view, int parentMeasureSpec, boolean horizontal) {
-
         int parentLength = MeasureSpec.getSize(parentMeasureSpec);
         int parentSpecMode = MeasureSpec.getMode(parentMeasureSpec);
 
@@ -399,7 +408,13 @@ public class CommonLayoutParams extends FrameLayout.LayoutParams {
                     int gravity = LayoutBase.getGravity(view);
                     boolean stretched;
                     if (horizontal) {
-                        final int horizontalGravity = Gravity.getAbsoluteGravity(gravity, view.getLayoutDirection()) & Gravity.HORIZONTAL_GRAVITY_MASK;
+                        int layoutDirection = 0;
+
+                        if (version >= 17) {
+                            layoutDirection = view.getLayoutDirection();
+                        }
+
+                        final int horizontalGravity = Gravity.getAbsoluteGravity(gravity, layoutDirection) & Gravity.HORIZONTAL_GRAVITY_MASK;
                         stretched = horizontalGravity == Gravity.FILL_HORIZONTAL;
                     } else {
                         final int verticalGravity = gravity & Gravity.VERTICAL_GRAVITY_MASK;

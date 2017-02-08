@@ -15,6 +15,7 @@ import android.widget.FrameLayout;
  *
  */
 public abstract class LayoutBase extends ViewGroup {
+    static final int version = android.os.Build.VERSION.SDK_INT;
 
 	public LayoutBase(Context context) {
 		super(context);
