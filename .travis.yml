@@ -6,7 +6,7 @@ language: objective-c
 osx_image: xcode7.3
 install:
   - brew update
-  - brew install android-sdk
+  - brew cask install android-sdk
   - echo y | android update sdk -t android-23,build-tools-23.0.3,extra-android-m2repository --no-ui --all
 before_script:
   - export ANDROID_HOME=/usr/local/opt/android-sdk
