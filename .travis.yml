@@ -8,7 +8,7 @@ install:
   - brew update
   - brew cask install android-sdk
   - yes | sdkmanager "platforms;android-23"
-  - yes | sdkmanager "build-tools;25.0.2"
+  - yes | sdkmanager "build-tools;23.0.3"
   - yes | sdkmanager "extras;android;m2repository"
 before_script:
   - export ANDROID_HOME=/usr/local/share/android-sdk
