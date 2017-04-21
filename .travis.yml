@@ -11,7 +11,8 @@ install:
   - yes | sdkmanager "build-tools;25.0.2"
   - yes | sdkmanager "extras;android;m2repository"
 before_script:
-  - export ANDROID_HOME=/usr/local/opt/android-sdk
+  - ls -al /usr/local/Caskroom/android-sdk/
+  - export ANDROID_HOME=/usr/local/Caskroom/android-sdk/25.2.3/
 script: ./build.sh $PACKAGE_VERSION
 before_deploy:
   - cd ./dist/package/
