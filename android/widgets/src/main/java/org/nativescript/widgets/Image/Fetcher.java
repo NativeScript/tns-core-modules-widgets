@@ -19,10 +19,13 @@ package org.nativescript.widgets.image;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Matrix;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.ExifInterface;
 import android.os.Build;
 import android.util.Log;
+import android.util.TypedValue;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -156,7 +159,7 @@ public class Fetcher extends Worker {
      * @param data The data to load the bitmap, in this case, a regular http URL
      * @return The downloaded and resized bitmap
      */
-    private Bitmap processHttp(String data, int decodeWidth, int decodeHeight) {
+    private Bitmap processHttp(String data, int decodeWidth, int decodeHeight, boolean keepAspectRatio) {
         final String key = Cache.hashKeyForDisk(data);
         FileDescriptor fileDescriptor = null;
         FileInputStream fileInputStream = null;
@@ -211,7 +214,7 @@ public class Fetcher extends Worker {
         Bitmap bitmap = null;
         if (fileDescriptor != null) {
             bitmap = decodeSampledBitmapFromDescriptor(fileDescriptor, decodeWidth,
-                    decodeHeight, getCache());
+                    decodeHeight, keepAspectRatio, getCache());
         }
         if (fileInputStream != null) {
             try {
@@ -222,14 +225,14 @@ public class Fetcher extends Worker {
         return bitmap;
     }
 
-    private Bitmap processHttpNoCache(String data, int decodeWidth, int decodeHeight) {
+    private Bitmap processHttpNoCache(String data, int decodeWidth, int decodeHeight, boolean keepAspectRatio) {
         ByteArrayOutputStreamInternal outputStream = null;
         Bitmap bitmap = null;
 
         try {
             outputStream = new ByteArrayOutputStreamInternal();
             if (downloadUrlToStream(data, outputStream)) {
-                bitmap = decodeSampledBitmapFromByteArray(outputStream.getBuffer(), decodeWidth, decodeHeight, getCache());
+                bitmap = decodeSampledBitmapFromByteArray(outputStream.getBuffer(), decodeWidth, decodeHeight, keepAspectRatio, getCache());
             }
         } catch (IllegalStateException e) {
             Log.e(TAG, "processHttpNoCache - " + e);
@@ -246,28 +249,28 @@ public class Fetcher extends Worker {
     }
 
     @Override
-    protected Bitmap processBitmap(String uri, int decodeWidth, int decodeHeight, boolean useCache) {
+    protected Bitmap processBitmap(String uri, int decodeWidth, int decodeHeight, boolean keepAspectRatio, boolean useCache) {
         if (debuggable > 0) {
             Log.v(TAG, "process: " + uri);
         }
 
         if (uri.startsWith(FILE_PREFIX)) {
             String filename = uri.substring(FILE_PREFIX.length());
-            return decodeSampledBitmapFromFile(filename, decodeWidth, decodeHeight, getCache());
+            return decodeSampledBitmapFromFile(filename, decodeWidth, decodeHeight, keepAspectRatio, getCache());
         } else if (uri.startsWith(RESOURCE_PREFIX)) {
             String resPath = uri.substring(RESOURCE_PREFIX.length());
             int resId = mResources.getIdentifier(resPath, "drawable", mPackageName);
             if (resId > 0) {
-                return decodeSampledBitmapFromResource(mResources, resId, decodeWidth, decodeHeight, getCache());
+                return decodeSampledBitmapFromResource(mResources, resId, decodeWidth, decodeHeight, keepAspectRatio, getCache());
             } else {
                 Log.v(TAG, "Missing Image with resourceID: " + uri);
                 return null;
             }
         } else {
             if (useCache && mHttpDiskCache != null) {
-                return processHttp(uri, decodeWidth, decodeHeight);
+                return processHttp(uri, decodeWidth, decodeHeight, keepAspectRatio);
             } else {
-                return processHttpNoCache(uri, decodeWidth, decodeHeight);
+                return processHttpNoCache(uri, decodeWidth, decodeHeight, keepAspectRatio);
             }
         }
     }
@@ -343,7 +346,7 @@ public class Fetcher extends Worker {
      *         that are equal to or greater than the requested width and height
      */
     public static Bitmap decodeSampledBitmapFromResource(Resources res, int resId,
-                                                         int reqWidth, int reqHeight, Cache cache) {
+                                                         int reqWidth, int reqHeight, boolean keepAspectRatio, Cache cache) {
 
         // BEGIN_INCLUDE (read_bitmap_dimensions)
         // First decode with inJustDecodeBounds=true to check dimensions
@@ -351,14 +354,7 @@ public class Fetcher extends Worker {
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeResource(res, resId, options);
 
-        // If requested width/height were not specified - decode in full size.
-        if (reqWidth > 0 && reqHeight > 0) {
-            // Calculate inSampleSize
-            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        }
-        else {
-            options.inSampleSize = 1;
-        }
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight, keepAspectRatio);
 
         // END_INCLUDE (read_bitmap_dimensions)
 
@@ -369,7 +365,39 @@ public class Fetcher extends Worker {
 
         // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false;
-        return BitmapFactory.decodeResource(res, resId, options);
+        Bitmap bitmap = null;
+        InputStream is = null;
+
+        try {
+            final TypedValue value = new TypedValue();
+            is = res.openRawResource(resId, value);
+
+            bitmap = BitmapFactory.decodeResourceStream(res, value, is, null, options);
+        } catch (Exception e) {
+            /*  do nothing.
+                If the exception happened on open, bm will be null.
+                If it happened on close, bm is still valid.
+            */
+        } finally {
+            try {
+                if (is != null) is.close();
+            } catch (IOException e) {
+                // Ignore
+            }
+        }
+
+        if (bitmap == null && options != null && options.inBitmap != null) {
+            throw new IllegalArgumentException("Problem decoding into existing bitmap");
+        }
+
+        ExifInterface ei = null;
+        try {
+            ei = new ExifInterface(is);
+        } catch (final IOException e) {
+            Log.e(TAG, "Error in reading bitmap - " + e);
+        }
+
+        return scaleAndRotateBitmap(bitmap, ei, reqWidth, reqHeight, keepAspectRatio);
     }
 
     /**
@@ -382,22 +410,15 @@ public class Fetcher extends Worker {
      * @return A bitmap sampled down from the original with the same aspect ratio and dimensions
      *         that are equal to or greater than the requested width and height
      */
-    public static Bitmap decodeSampledBitmapFromFile(String filename,
-                                                     int reqWidth, int reqHeight, Cache cache) {
+    public static Bitmap decodeSampledBitmapFromFile(String fileName,
+                                                     int reqWidth, int reqHeight, boolean keepAspectRatio, Cache cache) {
 
         // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(filename, options);
+        BitmapFactory.decodeFile(fileName, options);
 
-        // If requested width/height were not specified - decode in full size.
-        if (reqWidth > 0 && reqHeight > 0) {
-            // Calculate inSampleSize
-            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        }
-        else {
-            options.inSampleSize = 1;
-        }
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight, keepAspectRatio);
 
         // If we're running on Honeycomb or newer, try to use inBitmap
         if (Utils.hasHoneycomb()) {
@@ -406,7 +427,70 @@ public class Fetcher extends Worker {
 
         // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false;
-        return BitmapFactory.decodeFile(filename, options);
+        
+        final Bitmap bitmap = BitmapFactory.decodeFile(fileName, options);
+        ExifInterface ei = null;
+        try {
+            ei = new ExifInterface(fileName);
+        } catch (final IOException e) {
+            Log.e(TAG, "Error in reading bitmap - " + e);
+        }
+
+        return scaleAndRotateBitmap(bitmap, ei, reqWidth, reqHeight, keepAspectRatio);
+    }
+
+    private static Bitmap scaleAndRotateBitmap(Bitmap bitmap, ExifInterface ei, int reqWidth, int reqHeight, boolean keepAspectRatio) {
+        int sourceWidth = bitmap.getWidth();
+        int sourceHeight = bitmap.getHeight();
+        reqWidth = reqWidth > 0 ? reqWidth : sourceWidth;
+        reqHeight = reqHeight > 0 ? reqHeight : sourceHeight;
+
+        // scale
+        if (reqWidth != sourceWidth || reqHeight != sourceHeight) {
+            if (keepAspectRatio) {
+                double widthCoef = (double) sourceWidth / (double) reqWidth;
+                double heightCoef = (double) sourceHeight / (double) reqHeight;
+                double aspectCoef = widthCoef > heightCoef ? widthCoef : heightCoef;
+
+                reqWidth = (int) Math.floor(sourceWidth / aspectCoef);
+                reqHeight = (int) Math.floor(sourceHeight / aspectCoef);
+            }
+
+            bitmap = Bitmap.createScaledBitmap(bitmap, reqWidth, reqHeight, true);
+        }
+
+
+        // rotate
+        if (ei != null) {
+            final Matrix matrix = new Matrix();
+            final int rotationAngle = calculateAngleFromFile(ei);
+            if (rotationAngle != 0) {
+                matrix.postRotate(rotationAngle);
+                bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+            }
+        }
+
+
+        return bitmap;
+    }
+
+    private static int calculateAngleFromFile(ExifInterface ei) {
+        int rotationAngle = 0;
+        final int orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+    
+        switch (orientation) {
+            case android.media.ExifInterface.ORIENTATION_ROTATE_90:
+                rotationAngle = 90;
+                break;
+            case android.media.ExifInterface.ORIENTATION_ROTATE_180:
+                rotationAngle = 180;
+                break;
+            case android.media.ExifInterface.ORIENTATION_ROTATE_270:
+                rotationAngle = 270;
+                break;
+        }
+    
+        return rotationAngle;
     }
 
     /**
@@ -420,21 +504,14 @@ public class Fetcher extends Worker {
      *         that are equal to or greater than the requested width and height
      */
     public static Bitmap decodeSampledBitmapFromDescriptor(
-            FileDescriptor fileDescriptor, int reqWidth, int reqHeight, Cache cache) {
+            FileDescriptor fileDescriptor, int reqWidth, int reqHeight, boolean keepAspectRatio, Cache cache) {
 
         // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
 
-        // If requested width/height were not specified - decode in full size.
-        if (reqWidth > 0 && reqHeight > 0) {
-            // Calculate inSampleSize
-            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        }
-        else {
-            options.inSampleSize = 1;
-        }
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight, keepAspectRatio);
 
         // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false;
@@ -455,25 +532,26 @@ public class Fetcher extends Worker {
             results = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
             // If image is broken, rather than an issue with the inBitmap, we will get a NULL out in this case...
         }
-        return results;
+
+        ExifInterface ei = null;
+        try {
+            ei = new ExifInterface(fileDescriptor);
+        } catch (final IOException e) {
+            Log.e(TAG, "Error in reading bitmap - " + e);
+        }
+
+        return scaleAndRotateBitmap(results, ei, reqWidth, reqHeight, keepAspectRatio);
     }
 
     public static Bitmap decodeSampledBitmapFromByteArray(
-            byte[] buffer, int reqWidth, int reqHeight, Cache cache) {
+            byte[] buffer, int reqWidth, int reqHeight, boolean keepAspectRatio, Cache cache) {
 
         // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeByteArray(buffer, 0, buffer.length, options);
 
-        // If requested width/height were not specified - decode in full size.
-        if (reqWidth > 0 && reqHeight > 0) {
-            // Calculate inSampleSize
-            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        }
-        else {
-            options.inSampleSize = 1;
-        }
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight, keepAspectRatio);
 
         // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false;
@@ -483,7 +561,17 @@ public class Fetcher extends Worker {
             addInBitmapOptions(options, cache);
         }
 
-        return BitmapFactory.decodeByteArray(buffer, 0, buffer.length, options);
+        final Bitmap bitmap = BitmapFactory.decodeByteArray(buffer, 0, buffer.length, options);
+
+        ExifInterface ei = null;
+        try {
+            ByteArrayInputStream bs = new ByteArrayInputStream(buffer);
+            ei = new ExifInterface(bs);
+        } catch (final IOException e) {
+            Log.e(TAG, "Error in reading bitmap - " + e);
+        }
+
+        return scaleAndRotateBitmap(bitmap, ei, reqWidth, reqHeight, keepAspectRatio);
     }
 
     /**
@@ -499,13 +587,14 @@ public class Fetcher extends Worker {
      * @return The value to be used for inSampleSize
      */
     public static int calculateInSampleSize(BitmapFactory.Options options,
-                                            int reqWidth, int reqHeight) {
+                                            int reqWidth, int reqHeight, boolean keepAspectRatio) {
         // BEGIN_INCLUDE (calculate_sample_size)
         // Raw height and width of image
         final int height = options.outHeight;
         final int width = options.outWidth;
+        reqWidth = reqWidth > 0 ? reqWidth : width;
+        reqHeight = reqHeight > 0 ? reqHeight : height;
         int inSampleSize = 1;
-
         if (height > reqHeight || width > reqWidth) {
 
             final int halfHeight = height / 2;
