@@ -34,7 +34,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -378,26 +377,61 @@ public class Fetcher extends Worker {
                 If the exception happened on open, bm will be null.
                 If it happened on close, bm is still valid.
             */
-        } finally {
-            try {
-                if (is != null) is.close();
-            } catch (IOException e) {
-                // Ignore
-            }
         }
 
         if (bitmap == null && options != null && options.inBitmap != null) {
             throw new IllegalArgumentException("Problem decoding into existing bitmap");
         }
 
+        ExifInterface ei = getExifInterface(is);
+
+        return scaleAndRotateBitmap(bitmap, ei, reqWidth, reqHeight, keepAspectRatio);
+    }
+
+    @TargetApi(Build.VERSION_CODES.N)
+    private static ExifInterface getExifInterface(InputStream is) {
         ExifInterface ei = null;
         try {
-            ei = new ExifInterface(is);
-        } catch (final IOException e) {
+            if (Utils.hasN()) {
+                ei = new ExifInterface(is);
+            }
+        } catch (final Exception e) {
+            Log.e(TAG, "Error in reading bitmap - " + e);
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                }
+            }
+        }
+
+        return ei;
+    }
+
+    @TargetApi(Build.VERSION_CODES.N)
+    private static ExifInterface getExifInterface(FileDescriptor fd) {
+        ExifInterface ei = null;
+        try {
+            if (Utils.hasN()) {
+                ei = new ExifInterface(fd);
+            }
+        } catch (final Exception e) {
             Log.e(TAG, "Error in reading bitmap - " + e);
         }
 
-        return scaleAndRotateBitmap(bitmap, ei, reqWidth, reqHeight, keepAspectRatio);
+        return ei;
+    }
+
+    private static ExifInterface getExifInterface(String fileName) {
+        ExifInterface ei = null;
+        try {
+            ei = new ExifInterface(fileName);
+        } catch (final Exception e) {
+            Log.e(TAG, "Error in reading bitmap - " + e);
+        }
+
+        return ei;
     }
 
     /**
@@ -429,12 +463,7 @@ public class Fetcher extends Worker {
         options.inJustDecodeBounds = false;
         
         final Bitmap bitmap = BitmapFactory.decodeFile(fileName, options);
-        ExifInterface ei = null;
-        try {
-            ei = new ExifInterface(fileName);
-        } catch (final IOException e) {
-            Log.e(TAG, "Error in reading bitmap - " + e);
-        }
+        ExifInterface ei = getExifInterface(fileName);
 
         return scaleAndRotateBitmap(bitmap, ei, reqWidth, reqHeight, keepAspectRatio);
     }
@@ -463,7 +492,7 @@ public class Fetcher extends Worker {
         // rotate
         if (ei != null) {
             final Matrix matrix = new Matrix();
-            final int rotationAngle = calculateAngleFromFile(ei);
+            final int rotationAngle = calculateRotationAngle(ei);
             if (rotationAngle != 0) {
                 matrix.postRotate(rotationAngle);
                 bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
@@ -474,18 +503,18 @@ public class Fetcher extends Worker {
         return bitmap;
     }
 
-    private static int calculateAngleFromFile(ExifInterface ei) {
+    private static int calculateRotationAngle(ExifInterface ei) {
         int rotationAngle = 0;
         final int orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
     
         switch (orientation) {
-            case android.media.ExifInterface.ORIENTATION_ROTATE_90:
+            case ExifInterface.ORIENTATION_ROTATE_90:
                 rotationAngle = 90;
                 break;
-            case android.media.ExifInterface.ORIENTATION_ROTATE_180:
+            case ExifInterface.ORIENTATION_ROTATE_180:
                 rotationAngle = 180;
                 break;
-            case android.media.ExifInterface.ORIENTATION_ROTATE_270:
+            case ExifInterface.ORIENTATION_ROTATE_270:
                 rotationAngle = 270;
                 break;
         }
@@ -533,12 +562,7 @@ public class Fetcher extends Worker {
             // If image is broken, rather than an issue with the inBitmap, we will get a NULL out in this case...
         }
 
-        ExifInterface ei = null;
-        try {
-            ei = new ExifInterface(fileDescriptor);
-        } catch (final IOException e) {
-            Log.e(TAG, "Error in reading bitmap - " + e);
-        }
+        ExifInterface ei = getExifInterface(fileDescriptor);
 
         return scaleAndRotateBitmap(results, ei, reqWidth, reqHeight, keepAspectRatio);
     }
@@ -563,13 +587,8 @@ public class Fetcher extends Worker {
 
         final Bitmap bitmap = BitmapFactory.decodeByteArray(buffer, 0, buffer.length, options);
 
-        ExifInterface ei = null;
-        try {
-            ByteArrayInputStream bs = new ByteArrayInputStream(buffer);
-            ei = new ExifInterface(bs);
-        } catch (final IOException e) {
-            Log.e(TAG, "Error in reading bitmap - " + e);
-        }
+        InputStream is = new ByteArrayInputStream(buffer);
+        ExifInterface ei = getExifInterface(is);
 
         return scaleAndRotateBitmap(bitmap, ei, reqWidth, reqHeight, keepAspectRatio);
     }
