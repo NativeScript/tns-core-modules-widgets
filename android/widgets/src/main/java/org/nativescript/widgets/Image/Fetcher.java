@@ -469,6 +469,10 @@ public class Fetcher extends Worker {
     }
 
     private static Bitmap scaleAndRotateBitmap(Bitmap bitmap, ExifInterface ei, int reqWidth, int reqHeight, boolean keepAspectRatio) {
+        if (bitmap == null) {
+            return null;
+        }
+        
         int sourceWidth = bitmap.getWidth();
         int sourceHeight = bitmap.getHeight();
         reqWidth = reqWidth > 0 ? reqWidth : sourceWidth;
