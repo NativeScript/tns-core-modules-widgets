@@ -1,38 +1,75 @@
 # Development Workflow
 
-<!-- TOC depthFrom:2 -->
+<!-- TOC depthFrom:1 -->
 
-- [Running locally](#running-locally)
-    - [Prerequisites](#prerequisites)
-    - [How to Build](#how-to-build)
-    - [How to Build Android](#how-to-build-android)
-    - [How to Build iOS](#how-to-build-ios)
+- [Prerequisites](#prerequisites)
+- [How to Build](#how-to-build)
+- [How to Build Android](#how-to-build-android)
+- [How to Build iOS](#how-to-build-ios)
+- [How to Build Android on Windows](#how-to-build-android-on-windows)
+- [How to Use in an Application](#how-to-use-in-an-application)
 
 <!-- /TOC -->
 
-## Running locally
-
 ### Prerequisites
 
-- Install your native toolchain and NativeScript as described in the docs: https://docs.nativescript.org/setup/quick-setup
+Install your native toolchain and NativeScript as described in the docs: https://docs.nativescript.org/setup/quick-setup
 
 ### How to Build
-On Mac in the root folder run:
+
+The repository contains a set of `shell` script files which allow you to build it on macOS.
+
+In the root folder you can execute:
+
+```shell
+$ ./build.sh
 ```
-./build.sh
-```
-This will run Android and iOS build and pack `dist/tns-core-modules-widgets-*.tgz`.
+
+This script builds both Android and iOS, assembles the package at `./dist/package` and packs it as `./dist/tns-core-modules-widgets-*.tgz`.
 
 ### How to Build Android
-In the `android` folder run:
+
+In the root folder you can execute:
+
+```shell
+$ ./build.android.sh
 ```
-gradle build
-```
-This will output `android/build/widgets-release.aar`.
+
+This script builds only the Android project, assembles the package at `./dist/package` and packs it as `./dist/tns-core-modules-widgets-*.tgz`. The output file is available at `./android/widgets/build/outputs/aar/widgets-release.aar`.
 
 ### How to Build iOS
-On Mac in the `ios` folder under mac run:
+
+In the root folder you can execute:
+
+```shell
+$ ./build.ios.sh
 ```
-./build.sh
+This script builds only the Xcode project, assembles the package at `./dist/package` and packs it as `./dist/tns-core-modules-widgets-*.tgz`. The output native iOS framework is available at `./ios/TNSWidgets/build/TNSWidgets.framework`.
+
+### How to Build Android on Windows
+
+In the root folder you can execute:
+
+```bat
+$ .\build.android.bat
 ```
-This will output `ios/build/TNSWidgets.framework`.
+
+This `.bat` file builds only the Android project, assembles the package at `.\dist\package` and packs it as `.\dist\tns-core-modules-widgets-*.tgz`. The output file is available at `.\android\widgets\build\outputs\aar\widgets-release.aar`.
+
+## How to Use in an Application
+
+You could link the `tns-core-modules-widgets` plugin package to your application through the steps listed below.
+
+In the `./dist/package` folder execute:
+
+```
+npm link
+```
+
+In your application project folder execute:
+
+```
+npm link tns-core-modules-widgets
+```
+
+Build the plugin with the above-mentioned commands after each change you would like to test.
