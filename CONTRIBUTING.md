@@ -75,4 +75,4 @@ It's our turn from there on! We will review the PR and discuss changes you might
 
 ## Where to Start
 
-If you want to contribute, but you are not sure where to start - look for [issues labeled `help wanted`](https://github.com/NativeScript/tns-core-modules-widgets/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22).
+If you want to contribute, but you are not sure where to start - look for issues labeled [`help wanted`](https://github.com/NativeScript/tns-core-modules-widgets/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22).

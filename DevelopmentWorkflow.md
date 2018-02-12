@@ -13,7 +13,7 @@
 
 ### Prerequisites
 
-Install your native toolchain and NativeScript as described in the docs: https://docs.nativescript.org/setup/quick-setup
+Install your native toolchain and NativeScript as described in the docs: https://docs.nativescript.org/setup/quick-setup. In order to open the native Android and iOS project, you need Android Studio and Xcode respectively.
 
 ### How to Build
 
