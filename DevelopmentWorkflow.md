@@ -15,7 +15,7 @@
 
 Install your native toolchain and NativeScript as described in the docs: https://docs.nativescript.org/setup/quick-setup. In order to open the native Android and iOS project, you need Android Studio and Xcode respectively.
 
-### How to Build
+### How to Build the Package
 
 The repository contains a set of `shell` script files which allow you to build it on macOS.
 
@@ -29,7 +29,7 @@ This script builds both Android and iOS, assembles the package at `./dist/packag
 
 ### How to Build Android
 
-In the root folder you can execute:
+On Unix-like operating systems you can execute:
 
 ```shell
 $ ./build.android.sh
@@ -37,24 +37,23 @@ $ ./build.android.sh
 
 This script builds only the Android project, assembles the package at `./dist/package` and packs it as `./dist/tns-core-modules-widgets-*.tgz`. The output file is available at `./android/widgets/build/outputs/aar/widgets-release.aar`.
 
-### How to Build iOS
-
-In the root folder you can execute:
-
-```shell
-$ ./build.ios.sh
-```
-This script builds only the Xcode project, assembles the package at `./dist/package` and packs it as `./dist/tns-core-modules-widgets-*.tgz`. The output native iOS framework is available at `./ios/TNSWidgets/build/TNSWidgets.framework`.
-
-### How to Build Android on Windows
-
-In the root folder you can execute:
+On Windows you can execute:
 
 ```bat
 $ .\build.android.bat
 ```
 
 This `.bat` file builds only the Android project, assembles the package at `.\dist\package` and packs it as `.\dist\tns-core-modules-widgets-*.tgz`. The output file is available at `.\android\widgets\build\outputs\aar\widgets-release.aar`.
+
+
+### How to Build iOS
+
+On macOS you can execute:
+
+```shell
+$ ./build.ios.sh
+```
+This script builds only the Xcode project, assembles the package at `./dist/package` and packs it as `./dist/tns-core-modules-widgets-*.tgz`. The output native iOS framework is available at `./ios/TNSWidgets/build/TNSWidgets.framework`.
 
 ## How to Use in an Application
 
