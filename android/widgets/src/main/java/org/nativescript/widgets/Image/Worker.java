@@ -95,29 +95,34 @@ public abstract class Worker {
      * @param owner The owner to bind the downloaded image to.
      * @param listener A listener that will be called back once the image has been loaded.
      */
-    public void loadImage(String uri, BitmapOwner owner, int decodeWidth, int decodeHeight, boolean useCache, boolean async, OnImageLoadedListener listener) {
+    public void loadImage(String uri, BitmapOwner owner, int decodeWidth, int decodeHeight, boolean keepAspectRatio, boolean useCache, boolean async, OnImageLoadedListener listener) {
         if (uri == null) {
             return;
         }
 
         Bitmap value = null;
+        String cacheUri = uri;
+
         if (debuggable > 0) {
             Log.v(TAG, "loadImage on: " + owner + " to: " + uri);
         }
 
         if (mCache != null && useCache) {
-            value = mCache.getBitmapFromMemCache(uri);
+            // Create new image cache for images with different decodeHeight/decodeWidth.
+            cacheUri = createCacheUri(uri, decodeHeight, decodeWidth);
+
+            value = mCache.getBitmapFromMemCache(cacheUri);
         }
 
         if (value == null && !async) {
             // Decode sync.
-            value = processBitmap(uri, decodeWidth, decodeHeight, useCache);
+            value = processBitmap(uri, decodeWidth, decodeHeight, keepAspectRatio, useCache);
             if (value != null) {
                 if (mCache != null && useCache) {
                     if (debuggable > 0) {
-                        Log.v(TAG, "loadImage.addBitmapToCache: " + owner + ", src: " + uri);
+                        Log.v(TAG, "loadImage.addBitmapToCache: " + owner + ", src: " + cacheUri);
                     }
-                    mCache.addBitmapToCache(uri, value);
+                    mCache.addBitmapToCache(cacheUri, value);
                 }
             }
         }
@@ -135,7 +140,7 @@ public abstract class Worker {
                 listener.onImageLoaded(true);
             }
         } else if (cancelPotentialWork(uri, owner)) {
-            final BitmapWorkerTask task = new BitmapWorkerTask(uri, owner, decodeWidth, decodeHeight, useCache, listener);
+            final BitmapWorkerTask task = new BitmapWorkerTask(uri, owner, decodeWidth, decodeHeight, keepAspectRatio, useCache, listener);
             final AsyncDrawable asyncDrawable =
                     new AsyncDrawable(mResources, mLoadingBitmap, task);
             owner.setDrawable(asyncDrawable);
@@ -194,7 +199,7 @@ public abstract class Worker {
      *            {@link Worker#loadImage(String, BitmapOwner, int, int, boolean, boolean, OnImageLoadedListener)}
      * @return The processed bitmap
      */
-    protected abstract Bitmap processBitmap(String uri, int decodeWidth, int decodeHeight, boolean useCache);
+    protected abstract Bitmap processBitmap(String uri, int decodeWidth, int decodeHeight, boolean keepAspectRatio, boolean useCache);
 
     /**
      * @return The {@link Cache} object currently being used by this Worker.
@@ -258,25 +263,39 @@ public abstract class Worker {
     }
 
     /**
+     * Create cache key depending on image uri and decode properties.
+     */
+    private static String createCacheUri(String uri, int decodeHeight, int decodeWidth) {
+        uri += decodeHeight != 0 ? "height%%" + String.valueOf(decodeHeight): "";
+        uri += decodeWidth != 0 ? "width%%" + String.valueOf(decodeWidth): "";
+
+        return uri;
+    }
+
+    /**
      * The actual AsyncTask that will asynchronously process the image.
      */
     private class BitmapWorkerTask extends AsyncTask<Void, Void, Bitmap> {
         private int mDecodeWidth;
         private int mDecodeHeight;
+        private boolean mKeepAspectRatio;
         private String mUri;
+        private String mCacheUri;
         private boolean mCacheImage;
         private final WeakReference<BitmapOwner> imageViewReference;
         private final OnImageLoadedListener mOnImageLoadedListener;
 
-        public BitmapWorkerTask(String uri, BitmapOwner owner, int decodeWidth, int decodeHeight, boolean cacheImage) {
-            this(uri, owner, decodeWidth, decodeHeight, cacheImage, null);
+        public BitmapWorkerTask(String uri, BitmapOwner owner, int decodeWidth, int decodeHeight, boolean keepAspectRatio, boolean cacheImage) {
+            this(uri, owner, decodeWidth, decodeHeight, keepAspectRatio, cacheImage, null);
         }
 
-        public BitmapWorkerTask(String uri, BitmapOwner owner, int decodeWidth, int decodeHeight, boolean cacheImage, OnImageLoadedListener listener) {
+        public BitmapWorkerTask(String uri, BitmapOwner owner, int decodeWidth, int decodeHeight, boolean keepAspectRatio, boolean cacheImage, OnImageLoadedListener listener) {
             mDecodeWidth = decodeWidth;
             mDecodeHeight = decodeHeight;
+            mKeepAspectRatio = keepAspectRatio;
             mCacheImage = cacheImage;
             mUri = uri;
+            mCacheUri = createCacheUri(uri, decodeHeight, decodeWidth);
             imageViewReference = new WeakReference<BitmapOwner>(owner);
             mOnImageLoadedListener = listener;
         }
@@ -308,7 +327,7 @@ public abstract class Worker {
             // process method (as implemented by a subclass)
             if (bitmap == null && !isCancelled() && getAttachedOwner() != null
                     && !mExitTasksEarly) {
-                bitmap = processBitmap(mUri, mDecodeWidth, mDecodeHeight, mCacheImage);
+                bitmap = processBitmap(mUri, mDecodeWidth, mDecodeHeight, mKeepAspectRatio, mCacheImage);
             }
 
             // If the bitmap was processed and the image cache is available, then add the processed
@@ -318,9 +337,9 @@ public abstract class Worker {
             if (bitmap != null) {
                 if (mCache != null && mCacheImage) {
                     if (debuggable > 0) {
-                        Log.v(TAG, "addBitmapToCache: " + imageViewReference.get() + ", src: " + mUri);
+                        Log.v(TAG, "addBitmapToCache: " + imageViewReference.get() + ", src: " + mCacheUri);
                     }
-                    mCache.addBitmapToCache(mUri, bitmap);
+                    mCache.addBitmapToCache(mCacheUri, bitmap);
                 }
             }
 
