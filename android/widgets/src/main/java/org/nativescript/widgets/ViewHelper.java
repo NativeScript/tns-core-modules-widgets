@@ -461,8 +461,24 @@ public class ViewHelper {
         return view.getRotation();
     }
 
-    public static void setRotate(android.view.View view, float value) {
+    public static void setRotate(android.view.View view, float value, String axis) {
         view.setRotation(value);
+        switch (axis.toUpperCase()) {
+            case 'X':
+                view.setRotationX(value);
+                break;
+            case 'Y':
+                view.setRotationY(value);
+                break;
+            case 'Z':
+            default:
+                view.setRotation(value);
+                break;
+        }
+    }
+    
+    public static void setCameraDistance(android.view.View view, float value) {
+        view.setCameraDistance(value);
     }
 
     public static float getScaleX(android.view.View view) {
