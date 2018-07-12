@@ -29,6 +29,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
 
 public class Async
 {
@@ -302,7 +303,7 @@ public class Async
 				{
 					String key = pair.key.toString();
 					connection.addRequestProperty(key, pair.value.toString());
-					if (key.contentEquals("Accept-Encoding")) {
+					if (key.toLowerCase().contentEquals("Accept-Encoding")) {
 						hasAcceptHeader = true;
 					}
 				}
@@ -400,7 +401,7 @@ public class Async
 					// In the event we don't have a null stream, and we have gzip as part of the encoding
 					// then we will use gzip to decode the stream
 					if (inStream != null) {
-						String encodingHeader = conn.getHeaderField("Content-Encoding");
+						String encodingHeader = connection.getHeaderField("Content-Encoding");
 						if (encodingHeader != null && encodingHeader.toLowerCase().contains("gzip")) {
 							inStream = new GZIPInputStream(inStream);
 						}
