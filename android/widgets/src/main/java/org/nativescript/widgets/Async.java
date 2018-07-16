@@ -303,7 +303,7 @@ public class Async
 				{
 					String key = pair.key.toString();
 					connection.addRequestProperty(key, pair.value.toString());
-					if (key.toLowerCase().contentEquals("Accept-Encoding")) {
+					if (key.toLowerCase().contentEquals("accept-encoding")) {
 						hasAcceptHeader = true;
 					}
 				}
