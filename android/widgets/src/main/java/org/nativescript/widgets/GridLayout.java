@@ -226,7 +226,7 @@ public class GridLayout extends LayoutBase {
     }
 
     private void removeFromMap(View child) {
-        this.map.get(child).child = null;;
+        this.map.get(child).child = null;
         this.map.remove(child);
     }
 
