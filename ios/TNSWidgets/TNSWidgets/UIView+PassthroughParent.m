@@ -42,21 +42,12 @@ NSString * const TLKPassthroughParentKey = @"passthroughParent";
 }
 
 - (UIView *)passThrough_hitTest:(CGPoint)point withEvent:(UIEvent *)event {
-    if (self.isUserInteractionEnabled || !self.passthroughParent || self.isHidden || self.alpha <= 0.01) {
-        return [self passThrough_hitTest:point withEvent:event]; // swizzled
+    UIView *hitTestView = [self passThrough_hitTest:point withEvent:event]; // swizzled
+    if (hitTestView == self && self.passthroughParent) {
+        hitTestView = nil;
     }
 
-    if ([self pointInside:point withEvent:event]) {
-        for (UIView *subview in [self.subviews reverseObjectEnumerator]) {
-            CGPoint convertedPoint = [subview convertPoint:point fromView:self];
-            UIView *hitTestView = [subview hitTest:convertedPoint withEvent:event];
-            if (hitTestView) {
-                return hitTestView;
-            }
-        }
-    }
-    
-    return nil;
+    return hitTestView;
 }
 
 @end
