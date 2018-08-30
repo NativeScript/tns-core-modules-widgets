@@ -1,19 +1,19 @@
 //
-//  UIView+PassthroughParent.m
+//  UIView+PassThroughParent.m
 //  TNSWidgets
 //
 //  Created by Manol Donev on 21.08.18.
 //  Copyright © 2018 Telerik A D. All rights reserved.
 //
 
-#import "UIView+PassthroughParent.h"
+#import "UIView+PassThroughParent.h"
 #import "NSObject+Swizzling.h"
 #import "NSObject+PropertyBag.h"
 
 
-NSString * const TLKPassthroughParentKey = @"passthroughParent";
+NSString * const TLKPassThroughParentKey = @"passThroughParent";
 
-@implementation UIView (PassthroughParent)
+@implementation UIView (PassThroughParent)
 
 + (void) load {
     [self loadHitTest];
@@ -28,8 +28,8 @@ NSString * const TLKPassthroughParentKey = @"passthroughParent";
     }
 }
 
-- (BOOL)passthroughParent {
-    NSNumber *passthrough = [self propertyValueForKey:TLKPassthroughParentKey];
+- (BOOL)passThroughParent {
+    NSNumber *passthrough = [self propertyValueForKey:TLKPassThroughParentKey];
     if (passthrough) {
         return passthrough.boolValue;
     };
@@ -37,13 +37,13 @@ NSString * const TLKPassthroughParentKey = @"passthroughParent";
     return NO;
 }
 
-- (void)setPassthroughParent:(BOOL)passthroughParent {
-    [self setPropertyValue:[NSNumber numberWithBool:passthroughParent] forKey:TLKPassthroughParentKey];
+- (void)setPassThroughParent:(BOOL)passThroughParent {
+    [self setPropertyValue:[NSNumber numberWithBool:passThroughParent] forKey:TLKPassThroughParentKey];
 }
 
 - (UIView *)passThrough_hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     UIView *hitTestView = [self passThrough_hitTest:point withEvent:event]; // swizzled
-    if (hitTestView == self && self.passthroughParent) {
+    if (hitTestView == self && self.passThroughParent) {
         hitTestView = nil;
     }
 

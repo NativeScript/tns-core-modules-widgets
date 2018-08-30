@@ -1,5 +1,5 @@
 //
-//  UIView+PassthroughParent.h
+//  UIView+PassThroughParent.h
 //  TNSWidgets
 //
 //  Created by Manol Donev on 21.08.18.
@@ -9,9 +9,9 @@
 #import <UIKit/UIKit.h>
 
 
-@interface UIView (PassthroughParent)
+@interface UIView (PassThroughParent)
 
-- (BOOL) passthroughParent;
-- (void) setPassthroughParent:(BOOL) passthroughParent;
+- (BOOL) passThroughParent;
+- (void) setPassThroughParent:(BOOL) passThroughParent;
 
 @end

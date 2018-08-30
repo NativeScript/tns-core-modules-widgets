@@ -21,10 +21,10 @@ public abstract class LayoutBase extends ViewGroup {
 		super(context);
 	}
 
-    private boolean passthroughParent;
+    private boolean passThroughParent;
 
-    public boolean getPassthroughParent() { return this.passthroughParent; }
-    public void setPassthroughParent(boolean value) { this.passthroughParent = value; }
+    public boolean getPassThroughParent() { return this.passThroughParent; }
+    public void setPassThroughParent(boolean value) { this.passThroughParent = value; }
 
     @Override
     protected LayoutParams generateDefaultLayoutParams() {
@@ -68,13 +68,13 @@ public abstract class LayoutBase extends ViewGroup {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (!this.passthroughParent) {
+        if (!this.passThroughParent) {
             return super.onTouchEvent(event);
         }
 
         // LayoutBase.onTouchEvent(ev) execution means no interactive child view handled
         // the event so we let the event pass through to parent view of the layout container
-        // because passthroughParent is set to true
+        // because passThroughParent is set to true
         return false;
     }
 	
