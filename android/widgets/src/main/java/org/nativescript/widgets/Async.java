@@ -29,6 +29,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
 
 public class Async
 {
@@ -296,10 +297,20 @@ public class Async
 				{
 					return;
 				}
+				boolean hasAcceptHeader = false;
 
 				for (KeyValuePair pair : this.headers)
 				{
-					connection.addRequestProperty(pair.key.toString(), pair.value.toString());
+					String key = pair.key.toString();
+					connection.addRequestProperty(key, pair.value.toString());
+					if (key.toLowerCase().contentEquals("accept-encoding")) {
+						hasAcceptHeader = true;
+					}
+				}
+
+				// If the user hasn't added an Accept-Encoding header, we add gzip as something we accept
+				if (!hasAcceptHeader) {
+					connection.addRequestProperty("Accept-Encoding", "gzip");
 				}
 			}
 
@@ -375,8 +386,6 @@ public class Async
 
 			public void readResponseStream(HttpURLConnection connection, Stack<Closeable> openedStreams, RequestOptions options) throws IOException
 			{
-				this.statusCode = connection.getResponseCode();
-
 				int contentLength = connection.getContentLength();
 
 				InputStream inStream;
@@ -387,6 +396,14 @@ public class Async
 				else
 				{
 					inStream = connection.getInputStream();
+					// In the event we don't have a null stream, and we have gzip as part of the encoding
+					// then we will use gzip to decode the stream
+					if (inStream != null) {
+						String encodingHeader = connection.getHeaderField("Content-Encoding");
+						if (encodingHeader != null && encodingHeader.toLowerCase().contains("gzip")) {
+							inStream = new GZIPInputStream(inStream);
+						}
+					}
 				}
 
 				if (inStream == null)
@@ -545,6 +562,7 @@ public class Async
 					// build the result
 					result.getHeaders(connection);
 					result.url = options.url;
+					result.statusCode = connection.getResponseCode();
 					result.statusText = connection.getResponseMessage();
 					if (!requestMethod.equals(HEAD_METHOD))
 					{
