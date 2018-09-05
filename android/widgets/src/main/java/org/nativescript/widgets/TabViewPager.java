@@ -6,13 +6,14 @@ package org.nativescript.widgets;
 import android.content.Context;
 import android.support.v4.view.ViewPager;
 import android.util.AttributeSet;
-import android.view.View;
 import android.view.MotionEvent;
 import android.view.KeyEvent;
 
 // See this thread for more information https://stackoverflow.com/questions/9650265
 public class TabViewPager extends ViewPager {
     private boolean swipePageEnabled = true;
+
+    private OnTabSelectedListener mOnTabSelectedListener;
 
     public TabViewPager(Context context) {
         super(context);
@@ -22,10 +23,13 @@ public class TabViewPager extends ViewPager {
         super(context, attrs);
     }
 
+    public void setOnTabSelectedListener(OnTabSelectedListener listener) {
+        mOnTabSelectedListener = listener;
+    }
+
     public void setSwipePageEnabled(boolean enabled) {
         this.swipePageEnabled = enabled;
     }
-
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
         if (this.swipePageEnabled) {
@@ -55,6 +59,10 @@ public class TabViewPager extends ViewPager {
 
     @Override
     public void setCurrentItem(int item) {
+        if (this.mOnTabSelectedListener != null) {
+            this.mOnTabSelectedListener.onTabSelected(item);
+        }
+
         super.setCurrentItem(item, this.swipePageEnabled);
     }
 }
