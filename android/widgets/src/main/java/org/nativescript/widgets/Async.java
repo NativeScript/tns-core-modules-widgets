@@ -78,6 +78,7 @@ public class Async
 
 	public interface CompleteCallback {
 		void onComplete(Object result, Object tag);
+    void onError(Object tag);
 	}
 
 	public static class Image {
@@ -171,24 +172,34 @@ public class Async
 					Bitmap bmp = BitmapFactory.decodeStream(stream);
 					return bmp;
 				} catch (MalformedURLException e) {
-					e.printStackTrace();
+          // TODO: ask core about instead using logging here
+          // LET'S NOT USE PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
+					// e.printStackTrace();
 					return null;
 				} catch (IOException e) {
-					e.printStackTrace();
+          // TODO: ask core about instead using logging here
+          // LET'S NOT USE PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
+					// e.printStackTrace();
 					return null;
 				} finally {
 					if (stream != null) {
 						try {
 							stream.close();
 						} catch (IOException e) {
-							e.printStackTrace();
+              // TODO: ask core about instead using logging here
+          // LET'S NOT USE PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
+							// e.printStackTrace();
 						}
 					}
 				}
 			}
 
 			protected void onPostExecute(final Bitmap result) {
-				this.callback.onComplete(result, this.context);
+        if (result != null) {
+				  this.callback.onComplete(result, this.context);
+        } else {
+          this.callback.onError(this.context);
+        }
 			}
 		}
 
@@ -217,7 +228,11 @@ public class Async
 			}
 
 			protected void onPostExecute(final Bitmap result) {
-				this.callback.onComplete(result, this.requestId);
+        if (result != null) {
+				  this.callback.onComplete(result, this.requestId);
+        } else {
+          this.callback.onError(this.requestId);
+        }       
 			}
 		}
 
@@ -236,7 +251,11 @@ public class Async
 			}
 
 			protected void onPostExecute(final Bitmap result) {
-				this.callback.onComplete(result, this.requestId);
+        if (result != null) {
+				  this.callback.onComplete(result, this.requestId);
+        } else {
+          this.callback.onError(this.requestId);
+        }
 			}
 		}
 
@@ -256,7 +275,11 @@ public class Async
 			}
 
 			protected void onPostExecute(final Bitmap result) {
-				this.callback.onComplete(result, this.requestId);
+        if (result != null) {
+				  this.callback.onComplete(result, this.requestId);
+        } else {
+          this.callback.onError(this.requestId);
+        }
 			}
 		}
 	}
@@ -466,7 +489,9 @@ public class Async
 				catch (Exception e)
 				{
 					// bitmap decoding failed, the stream is not an image
-					e.printStackTrace();
+          // TODO: ask core about instead using logging here
+          // LET'S NOT USE PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
+					// e.printStackTrace();
 				}
 
 				if (this.responseAsImage == null)
@@ -585,7 +610,9 @@ public class Async
 					}
 					catch (IOException e)
 					{
-						e.printStackTrace();
+						// TODO: ask core about instead using logging here
+            // LET'S NOT USE TO PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
+					  // e.printStackTrace();
 						// TODO: Java rules - what to do here???
 					}
 				}
@@ -593,7 +620,11 @@ public class Async
 
 			protected void onPostExecute(final RequestResult result)
 			{
-				this.callback.onComplete(result, this.context);
+        if (result != null) {
+				  this.callback.onComplete(result, this.context);
+        } else {
+          this.callback.onError(this.context);
+        }
 			}
 
 			private void closeOpenedStreams(Stack<Closeable> streams) throws IOException
