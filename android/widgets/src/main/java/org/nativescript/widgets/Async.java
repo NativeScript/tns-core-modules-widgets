@@ -23,6 +23,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.Base64;
+import android.util.Log;
 
 import java.net.CookieManager;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -33,6 +34,7 @@ import java.util.zip.GZIPInputStream;
 
 public class Async
 {
+    static final String TAG = "Async";
 	static class PriorityThreadFactory implements ThreadFactory {
 		private final int mThreadPriority;
 
@@ -172,23 +174,17 @@ public class Async
 					Bitmap bmp = BitmapFactory.decodeStream(stream);
 					return bmp;
 				} catch (MalformedURLException e) {
-          // TODO: ask core about instead using logging here
-          // LET'S NOT USE PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
-					// e.printStackTrace();
+                    Log.v(TAG, "doInBackground MalformedURLException");
 					return null;
 				} catch (IOException e) {
-          // TODO: ask core about instead using logging here
-          // LET'S NOT USE PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
-					// e.printStackTrace();
+                    Log.v(TAG, "doInBackground IOException");
 					return null;
 				} finally {
 					if (stream != null) {
 						try {
 							stream.close();
 						} catch (IOException e) {
-              // TODO: ask core about instead using logging here
-          // LET'S NOT USE PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
-							// e.printStackTrace();
+                            Log.v(TAG, "doInBackground stream.close IOException");
 						}
 					}
 				}
@@ -488,10 +484,7 @@ public class Async
 				}
 				catch (Exception e)
 				{
-					// bitmap decoding failed, the stream is not an image
-          // TODO: ask core about instead using logging here
-          // LET'S NOT USE PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
-					// e.printStackTrace();
+                    Log.v(TAG, "readResponseStream Exception");
 				}
 
 				if (this.responseAsImage == null)
@@ -610,10 +603,7 @@ public class Async
 					}
 					catch (IOException e)
 					{
-						// TODO: ask core about instead using logging here
-            // LET'S NOT USE TO PRINT STACKTRACE: https://stackoverflow.com/questions/3855187/is-it-a-bad-idea-to-use-printstacktrace-in-android-exceptions
-					  // e.printStackTrace();
-						// TODO: Java rules - what to do here???
+                        Log.v(TAG, "HttpRequestTask closeOpenedStreams IOException");
 					}
 				}
 			}
