@@ -174,17 +174,17 @@ public class Async
 					Bitmap bmp = BitmapFactory.decodeStream(stream);
 					return bmp;
 				} catch (MalformedURLException e) {
-                    Log.v(TAG, "doInBackground MalformedURLException");
+					Log.e(TAG, "Failed to decode stream, MalformedURLException: " + e.getMessage());
 					return null;
 				} catch (IOException e) {
-                    Log.v(TAG, "doInBackground IOException");
+					Log.e(TAG, "Failed to decode stream, IOException: " + e.getMessage());
 					return null;
 				} finally {
 					if (stream != null) {
 						try {
 							stream.close();
 						} catch (IOException e) {
-                            Log.v(TAG, "doInBackground stream.close IOException");
+							Log.e(TAG, "Failed to close stream, IOException: " + e.getMessage());
 						}
 					}
 				}
@@ -484,7 +484,7 @@ public class Async
 				}
 				catch (Exception e)
 				{
-                    Log.v(TAG, "readResponseStream Exception");
+					Log.e(TAG, "Failed to decode byte array, Exception: " + e.getMessage());
 				}
 
 				if (this.responseAsImage == null)
@@ -603,7 +603,7 @@ public class Async
 					}
 					catch (IOException e)
 					{
-                        Log.v(TAG, "HttpRequestTask closeOpenedStreams IOException");
+						Log.e(TAG, "Failed to close opened streams, Exception: " + e.getMessage());
 					}
 				}
 			}
