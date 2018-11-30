@@ -56,7 +56,7 @@ public class Async {
     public interface CompleteCallback {
         void onComplete(Object result, Object tag);
 
-        void onError(Object tag);
+        void onError(Object tag, String error);
     }
 
     static class PriorityThreadFactory implements ThreadFactory {
@@ -194,7 +194,7 @@ public class Async {
                 if (result != null) {
                     this.callback.onComplete(result, this.context);
                 } else {
-                    this.callback.onError(this.context);
+                    this.callback.onError(this.context, "DownloadImageTask returns no result.");
                 }
             }
         }
@@ -227,7 +227,7 @@ public class Async {
                 if (result != null) {
                     this.callback.onComplete(result, this.requestId);
                 } else {
-                    this.callback.onError(this.requestId);
+                    this.callback.onError(this.requestId, "LoadImageFromResourceTask returns no result.");
                 }
             }
         }
@@ -250,7 +250,7 @@ public class Async {
                 if (result != null) {
                     this.callback.onComplete(result, this.requestId);
                 } else {
-                    this.callback.onError(this.requestId);
+                    this.callback.onError(this.requestId, "LoadImageFromFileTask returns no result.");
                 }
             }
         }
@@ -274,7 +274,7 @@ public class Async {
                 if (result != null) {
                     this.callback.onComplete(result, this.requestId);
                 } else {
-                    this.callback.onError(this.requestId);
+                    this.callback.onError(this.requestId, "LoadImageFromBase64StringTask returns no result.");
                 }
             }
         }
@@ -572,7 +572,7 @@ public class Async {
                 if (result != null) {
                     this.callback.onComplete(result, this.context);
                 } else {
-                    this.callback.onError(this.context);
+                    this.callback.onError(this.context, "HttpRequestTask returns no result.");
                 }
             }
 
