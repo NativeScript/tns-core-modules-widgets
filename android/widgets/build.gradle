@@ -63,7 +63,6 @@ android {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.android.support:support-v4:' + computeSupportVersion()
-    implementation 'com.android.support:support-annotations:' + computeSupportVersion()
 }
 
 task cleanBuildDir (type: Delete) {
