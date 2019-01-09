@@ -80,7 +80,16 @@ public class StackLayout extends LayoutBase {
             }
 
             if (isVertical) {
-            	CommonLayoutParams.measureChild(child, childMeasureSpec, MeasureSpec.makeMeasureSpec(remainingLength, measureSpecMode));
+                if (child instanceof android.widget.ListView) {
+                    // Measuring android.widget.ListView with MeasureSpec.AT_MOST will result in height required for all 
+                    // list view items or the maximum available space for the StackLayout. Any following controls will be visible only if enough
+                    // space left.
+                    CommonLayoutParams.measureChild(child, childMeasureSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+                }
+                else {
+                    CommonLayoutParams.measureChild(child, childMeasureSpec, MeasureSpec.makeMeasureSpec(remainingLength, measureSpecMode));
+                }
+
                 final int childMeasuredWidth = CommonLayoutParams.getDesiredWidth(child);
                 final int childMeasuredHeight = CommonLayoutParams.getDesiredHeight(child);
                 
