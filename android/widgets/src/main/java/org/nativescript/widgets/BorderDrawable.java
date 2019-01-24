@@ -819,7 +819,7 @@ public class BorderDrawable extends ColorDrawable implements BitmapOwner {
             backgroundPath.addRoundRect(new RectF(getBounds()), backgroundRadii, Path.Direction.CW);
             outline.setConvexPath(backgroundPath);
         } else {
-            super.getOutline(outline);
+            throw new IllegalStateException("Method supported on API 21 or higher");
         }
     }
 
