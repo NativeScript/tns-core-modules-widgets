@@ -14,7 +14,7 @@ import android.util.Log;
  *
  */
 public class StackLayout extends LayoutBase {
-	static final String TAG = "JS";
+    static final String TAG = "JS";
     private int _totalLength = 0;
     private Orientation _orientation = Orientation.vertical;
     
