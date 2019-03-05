@@ -296,7 +296,7 @@ public class FlexboxLayout extends ViewGroup {
      */
     
     private boolean mIsRtl = false;
-    public setRtl(boolean rtl) {
+    public void setRtl(boolean rtl) {
         mIsRtl = rtl;
     }
     
