@@ -1,5 +1,5 @@
 ---
-**This repository is deprecated.** in favour of [NativeScirpt/NativeScript/tns-core-modules-widgets](https://github.com/NativeScript/NativeScript).
+**This repository is deprecated** in favour of [NativeScirpt/NativeScript/tns-core-modules-widgets](https://github.com/NativeScript/NativeScript).
 
 ---
 
