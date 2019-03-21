@@ -22,7 +22,7 @@ import android.content.res.Resources;
 import android.graphics.Matrix;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.ExifInterface;
+import android.support.media.ExifInterface;
 import android.os.Build;
 import android.util.Log;
 import android.util.TypedValue;
@@ -32,7 +32,6 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -165,9 +164,10 @@ public class Fetcher extends Worker {
      */
     private Bitmap processHttp(String data, int decodeWidth, int decodeHeight, boolean keepAspectRatio) {
         final String key = Cache.hashKeyForDisk(data);
-        FileDescriptor fileDescriptor = null;
         FileInputStream fileInputStream = null;
         DiskLruCache.Snapshot snapshot;
+        Bitmap bitmap = null;
+        
         synchronized (mHttpDiskCacheLock) {
             // Wait for disk cache to initialize
             while (mHttpDiskCacheStarting) {
@@ -196,14 +196,15 @@ public class Fetcher extends Worker {
                     }
                     if (snapshot != null) {
                         fileInputStream = (FileInputStream) snapshot.getInputStream(DISK_CACHE_INDEX);
-                        fileDescriptor = fileInputStream.getFD();
+                        bitmap = decodeSampledBitmapFromByteArray(readAllBytes(fileInputStream), decodeWidth, decodeHeight,
+                        keepAspectRatio, getCache());
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "processHttp - " + e);
                 } catch (IllegalStateException e) {
                     Log.e(TAG, "processHttp - " + e);
                 } finally {
-                    if (fileDescriptor == null && fileInputStream != null) {
+                    if (fileInputStream != null) {
                         try {
                             fileInputStream.close();
                         } catch (IOException e) {
@@ -213,18 +214,48 @@ public class Fetcher extends Worker {
             }
         }
 
-        Bitmap bitmap = null;
-        if (fileDescriptor != null) {
-            bitmap = decodeSampledBitmapFromDescriptor(fileDescriptor, decodeWidth, decodeHeight, keepAspectRatio,
-                    getCache());
-        }
+        
         if (fileInputStream != null) {
+          if (bitmap == null) {
+            try {
+              bitmap = decodeSampledBitmapFromByteArray(readAllBytes(fileInputStream), decodeWidth, decodeHeight,
+                          keepAspectRatio, getCache());
+            } catch (IOException e) {
+                    Log.e(TAG, "processHttp - " + e);
+            }
+          }
             try {
                 fileInputStream.close();
             } catch (IOException e) {
             }
         }
         return bitmap;
+    }
+
+    public static byte[] readAllBytes(InputStream inputStream) throws IOException {
+        final int bufLen = 4 * 0x400; // 4KB
+        byte[] buf = new byte[bufLen];
+        int readLen;
+        IOException exception = null;
+
+        try {
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                while ((readLen = inputStream.read(buf, 0, bufLen)) != -1)
+                    outputStream.write(buf, 0, readLen);
+
+                return outputStream.toByteArray();
+            }
+        } catch (IOException e) {
+            exception = e;
+            throw e;
+        } finally {
+            if (exception == null) inputStream.close();
+            else try {
+                inputStream.close();
+            } catch (IOException e) {
+                exception.addSuppressed(e);
+            }
+        }
     }
 
     private Bitmap processHttpNoCache(String data, int decodeWidth, int decodeHeight, boolean keepAspectRatio) {
@@ -415,20 +446,6 @@ public class Fetcher extends Worker {
         return ei;
     }
 
-    @TargetApi(Build.VERSION_CODES.N)
-    private static ExifInterface getExifInterface(FileDescriptor fd) {
-        ExifInterface ei = null;
-        try {
-            if (Utils.hasN()) {
-                ei = new ExifInterface(fd);
-            }
-        } catch (final Exception e) {
-            Log.e(TAG, "Error in reading bitmap - " + e);
-        }
-
-        return ei;
-    }
-
     private static ExifInterface getExifInterface(String fileName) {
         ExifInterface ei = null;
         try {
@@ -529,50 +546,6 @@ public class Fetcher extends Worker {
         }
 
         return rotationAngle;
-    }
-
-    /**
-     * Decode and sample down a bitmap from a file input stream to the requested width and height.
-     *
-     * @param fileDescriptor The file descriptor to read from
-     * @param reqWidth The requested width of the resulting bitmap
-     * @param reqHeight The requested height of the resulting bitmap
-     * @param cache The Cache used to find candidate bitmaps for use with inBitmap
-     * @return A bitmap sampled down from the original with the same aspect ratio and dimensions
-     *         that are equal to or greater than the requested width and height
-     */
-    public static Bitmap decodeSampledBitmapFromDescriptor(FileDescriptor fileDescriptor, int reqWidth, int reqHeight,
-            boolean keepAspectRatio, Cache cache) {
-
-        // First decode with inJustDecodeBounds=true to check dimensions
-        final BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
-
-        options.inSampleSize = calculateInSampleSize(options.outWidth, options.outHeight, reqWidth, reqHeight);
-
-        // Decode bitmap with inSampleSize set
-        options.inJustDecodeBounds = false;
-
-        // If we're running on Honeycomb or newer, try to use inBitmap
-        if (Utils.hasHoneycomb()) {
-            addInBitmapOptions(options, cache);
-        }
-
-        Bitmap results = null;
-        try {
-            // This can throw an error on a corrupted image when using an inBitmap
-            results = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
-        } catch (Exception e) {
-            // clear the inBitmap and try again
-            options.inBitmap = null;
-            results = BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
-            // If image is broken, rather than an issue with the inBitmap, we will get a NULL out in this case...
-        }
-
-        ExifInterface ei = getExifInterface(fileDescriptor);
-
-        return scaleAndRotateBitmap(results, ei, reqWidth, reqHeight, keepAspectRatio);
     }
 
     public static Bitmap decodeSampledBitmapFromByteArray(byte[] buffer, int reqWidth, int reqHeight,
