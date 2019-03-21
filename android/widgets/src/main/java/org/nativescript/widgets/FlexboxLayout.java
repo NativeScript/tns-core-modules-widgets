@@ -119,7 +119,7 @@ public class FlexboxLayout extends ViewGroup {
      * The default value is {@link #FLEX_DIRECTION_ROW}.
      */
     private int mFlexDirection = FLEX_DIRECTION_ROW;
-
+    
 
     @IntDef({FLEX_WRAP_NOWRAP, FLEX_WRAP_WRAP, FLEX_WRAP_WRAP_REVERSE})
     @Retention(RetentionPolicy.SOURCE)
@@ -290,7 +290,20 @@ public class FlexboxLayout extends ViewGroup {
     private SparseIntArray mOrderCache;
 
     private List<FlexLine> mFlexLines = new ArrayList<>();
-
+    
+    /**
+     *  force change RTL direction
+     */
+    
+    private boolean mIsRtl = false;
+    public void setRtl(boolean rtl) {
+        mIsRtl = rtl;
+    }
+    
+    public boolean getRtl() {
+        return mIsRtl;
+    }
+    
     /**
      * Holds the 'frozen' state of children during measure. If a view is frozen it will no longer
      * expand or shrink regardless of flexGrow/flexShrink. Items are indexed by the child's
@@ -1557,25 +1570,21 @@ public class FlexboxLayout extends ViewGroup {
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         int layoutDirection = ViewCompat.getLayoutDirection(this);
-        boolean isRtl;
+        boolean isRtl = mIsRtl;
         switch (mFlexDirection) {
             case FLEX_DIRECTION_ROW:
-                isRtl = layoutDirection == ViewCompat.LAYOUT_DIRECTION_RTL;
                 layoutHorizontal(isRtl, left, top, right, bottom);
                 break;
             case FLEX_DIRECTION_ROW_REVERSE:
-                isRtl = layoutDirection != ViewCompat.LAYOUT_DIRECTION_RTL;
                 layoutHorizontal(isRtl, left, top, right, bottom);
                 break;
             case FLEX_DIRECTION_COLUMN:
-                isRtl = layoutDirection == ViewCompat.LAYOUT_DIRECTION_RTL;
                 if (mFlexWrap == FLEX_WRAP_WRAP_REVERSE) {
                     isRtl = !isRtl;
                 }
                 layoutVertical(isRtl, false, left, top, right, bottom);
                 break;
             case FLEX_DIRECTION_COLUMN_REVERSE:
-                isRtl = layoutDirection == ViewCompat.LAYOUT_DIRECTION_RTL;
                 if (mFlexWrap == FLEX_WRAP_WRAP_REVERSE) {
                     isRtl = !isRtl;
                 }
@@ -2016,25 +2025,22 @@ public class FlexboxLayout extends ViewGroup {
         }
 
         int layoutDirection = ViewCompat.getLayoutDirection(this);
-        boolean isRtl;
+        boolean isRtl = mIsRtl;
         boolean fromBottomToTop = false;
         switch (mFlexDirection) {
             case FLEX_DIRECTION_ROW:
-                isRtl = layoutDirection == ViewCompat.LAYOUT_DIRECTION_RTL;
                 if (mFlexWrap == FLEX_WRAP_WRAP_REVERSE) {
                     fromBottomToTop = true;
                 }
                 drawDividersHorizontal(canvas, isRtl, fromBottomToTop);
                 break;
             case FLEX_DIRECTION_ROW_REVERSE:
-                isRtl = layoutDirection != ViewCompat.LAYOUT_DIRECTION_RTL;
                 if (mFlexWrap == FLEX_WRAP_WRAP_REVERSE) {
                     fromBottomToTop = true;
                 }
                 drawDividersHorizontal(canvas, isRtl, fromBottomToTop);
                 break;
             case FLEX_DIRECTION_COLUMN:
-                isRtl = layoutDirection == ViewCompat.LAYOUT_DIRECTION_RTL;
                 if (mFlexWrap == FLEX_WRAP_WRAP_REVERSE) {
                     isRtl = !isRtl;
                 }
@@ -2042,7 +2048,6 @@ public class FlexboxLayout extends ViewGroup {
                 drawDividersVertical(canvas, isRtl, fromBottomToTop);
                 break;
             case FLEX_DIRECTION_COLUMN_REVERSE:
-                isRtl = layoutDirection == ViewCompat.LAYOUT_DIRECTION_RTL;
                 if (mFlexWrap == FLEX_WRAP_WRAP_REVERSE) {
                     isRtl = !isRtl;
                 }
