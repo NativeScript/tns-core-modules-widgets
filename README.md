@@ -1,4 +1,4 @@
-**__This repository is deprecated__ in favour** of [NativeScirpt/NativeScript/tns-core-modules-widgets](https://github.com/NativeScript/NativeScript).
+**__This repository is deprecated__ in favor** of [NativeScirpt/NativeScript/tns-core-modules-widgets](https://github.com/NativeScript/NativeScript).
 
 # NativeScript Core Modules Widgets
 [![Build Status](https://travis-ci.org/NativeScript/tns-core-modules-widgets.svg?branch=master)](https://travis-ci.org/NativeScript/tns-core-modules-widgets)
